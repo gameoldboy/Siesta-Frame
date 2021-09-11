@@ -5,6 +5,7 @@
     <TargetFramework>net5.0</TargetFramework>
     <RootNamespace>SiestaFrame</RootNamespace>
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
+	<ApplicationIcon>App.ico</ApplicationIcon>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
