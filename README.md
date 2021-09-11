@@ -1,2 +1,4 @@
 # Siesta-Frame
-A tiny c# renderer/game engine
+A tiny C# renderer/game engine
+
+![logo](logo.png)
