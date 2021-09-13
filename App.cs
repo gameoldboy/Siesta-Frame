@@ -3,10 +3,15 @@ using SiestaFrame.Rendering;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
+using System;
 using System.Diagnostics;
 using System.Linq;
 using System.Numerics;
+using Unity.Mathematics;
+using Shader = SiestaFrame.Rendering.Shader;
+using Texture = SiestaFrame.Rendering.Texture;
 
 namespace SiestaFrame
 {
@@ -16,18 +21,21 @@ namespace SiestaFrame
 
         public IWindow MainWindow { get; private set; }
 
+        ImGuiController controller;
+        IInputContext inputContext;
+        IKeyboard primaryKeyboard;
+
         BufferObject<float> VBO;
         BufferObject<uint> EBO;
         VertexArrayObject<float, uint> VAO;
 
-        Rendering.Shader shader;
-        Rendering.Texture texture;
-        //Setup the camera's location, and relative up and right directions
-        private static Vector3 CameraPosition = new Vector3(0.0f, 0.0f, 3.0f);
-        private static Vector3 CameraTarget = Vector3.Zero;
-        private static Vector3 CameraDirection = Vector3.Normalize(CameraPosition - CameraTarget);
-        private static Vector3 CameraRight = Vector3.Normalize(Vector3.Cross(Vector3.UnitY, CameraDirection));
-        private static Vector3 CameraUp = Vector3.Cross(CameraDirection, CameraRight);
+        Shader shader;
+        Texture texture;
+
+        Camera camera;
+        Transform box;
+
+        Vector2 LastMousePosition;
 
         readonly float[] vertices =
        {
@@ -86,7 +94,7 @@ namespace SiestaFrame
             Instance = this;
         }
 
-        public void Init()
+        public unsafe void Init()
         {
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
@@ -96,9 +104,13 @@ namespace SiestaFrame
                 Debug.WriteLine(s);
 
             var options = WindowOptions.Default;
+            //options.API = new GraphicsAPI(
+            //    ContextAPI.OpenGL, ContextProfile.Core,
+            //    ContextFlags.ForwardCompatible, new APIVersion(4, 6));
             options.Size = new Vector2D<int>(1280, 720);
             options.Title = "Siesta Frame";
             options.WindowBorder = WindowBorder.Fixed;
+            //options.VSync = false;
 
             MainWindow = Window.Create(options);
 
@@ -106,6 +118,7 @@ namespace SiestaFrame
             MainWindow.Update += onUpdate;
             MainWindow.Render += onRender;
             MainWindow.Closing += onClose;
+            MainWindow.FramebufferResize += onFramebufferResize;
 
             MainWindow.Run();
         }
@@ -117,13 +130,24 @@ namespace SiestaFrame
 
             MainWindow.Center();
 
-            IInputContext input = MainWindow.CreateInput();
-            for (int i = 0; i < input.Keyboards.Count; i++)
+            controller = new ImGuiController(
+                Graphics.GL = GL.GetApi(MainWindow),
+                MainWindow,
+                inputContext = MainWindow.CreateInput()
+            );
+            primaryKeyboard = inputContext.Keyboards.FirstOrDefault();
+            for (int i = 0; i < inputContext.Keyboards.Count; i++)
             {
-                input.Keyboards[i].KeyDown += KeyDown;
+                inputContext.Keyboards[i].KeyDown += KeyDown;
             }
-
-            Graphics.GL = GL.GetApi(MainWindow);
+            for (int i = 0; i < inputContext.Mice.Count; i++)
+            {
+                inputContext.Mice[i].Cursor.CursorMode = CursorMode.Raw;
+                inputContext.Mice[i].MouseUp += onMouseUp;
+                inputContext.Mice[i].MouseDown += onMouseDown;
+                inputContext.Mice[i].MouseMove += onMouseMove;
+                inputContext.Mice[i].Scroll += onMouseWheel;
+            }
 
             EBO = new BufferObject<uint>(indices, BufferTargetARB.ElementArrayBuffer);
             VBO = new BufferObject<float>(vertices, BufferTargetARB.ArrayBuffer);
@@ -136,20 +160,66 @@ namespace SiestaFrame
             // 顶点颜色
             //VAO.VertexAttributePointer(2, 4, VertexAttribPointerType.Float, 9, 5);
 
-            shader = new Rendering.Shader("vert.glsl", "frag.glsl");
+            shader = new Shader("vert.glsl", "frag.glsl");
 
-            texture = new Rendering.Texture(AppResource.logo);
+            texture = new Texture(AppResource.logo);
 
-            //gl.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+            camera = new Camera();
+            camera.Aspect = (float)MainWindow.Size.X / MainWindow.Size.Y;
+            camera.Transform.EulerAngles = new(0, 180f, 0);
+            camera.UpdateYawPaitch();
+
+            box = new Transform();
+            //box.Right = new Vector3(0.5f, 0.5f, 0.5f);
+
+            //Graphics.GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         }
 
-        void onUpdate(double obj)
+        void onUpdate(double deltaTime)
         {
+            var deltaTimef = (float)deltaTime;
 
+            const float s = 0.1f;
+            const float r = MathF.PI * 2f;
+            const float u = 1.5f;
+            var tx = math.sin((float)MainWindow.Time * s % 1f * r) * u;
+            var ty = math.sin((float)MainWindow.Time * s % 1f * r + r * 0.333f) * u;
+            var tz = math.sin((float)MainWindow.Time * s % 1f * r + r * 0.667f) * u;
+
+            box.Rotation = MathHelper.Rotate(new float3(tx * deltaTimef, ty * deltaTimef, tz * deltaTimef), box.Rotation);
+
+            var moveSpeed = 2.5f * deltaTimef;
+
+            camera.Transform.EulerAngles = new float3(camera.Pitch, camera.Yaw, 0);
+
+            if (primaryKeyboard.IsKeyPressed(Key.W))
+            {
+                camera.Transform.Position += camera.Transform.Forward * moveSpeed;
+            }
+            if (primaryKeyboard.IsKeyPressed(Key.S))
+            {
+                camera.Transform.Position -= camera.Transform.Forward * moveSpeed;
+            }
+            if (primaryKeyboard.IsKeyPressed(Key.A))
+            {
+                camera.Transform.Position -= camera.Transform.Right * moveSpeed;
+            }
+            if (primaryKeyboard.IsKeyPressed(Key.D))
+            {
+                camera.Transform.Position += camera.Transform.Right * moveSpeed;
+            }
         }
 
-        unsafe void onRender(double obj)
+        int FrameCount = 0;
+        string framesPerSecond = "?";
+        double FrameTimer = 0;
+
+        unsafe void onRender(double deltaTime)
         {
+            var deltaTimef = (float)deltaTime;
+
+            controller.Update(deltaTimef);
+
             Graphics.GL.Enable(EnableCap.DepthTest);
             Graphics.GL.ClearColor(0.85f, 0.87f, 0.89f, 1f);
             Graphics.GL.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
@@ -158,18 +228,28 @@ namespace SiestaFrame
             texture.Bind();
             shader.Use();
             shader.SetInt("uTexture0", 0);
+            shader.SetMatrix("uModel", box.ViewMatrix);
+            shader.SetMatrix("uView", camera.ViewMatrix);
+            shader.SetMatrix("uProjection", camera.ProjectionMatrix);
 
-            var difference = (float)(MainWindow.Time * 100);
-
-            var model = Matrix4x4.CreateRotationY(MathHelper.DegreesToRadians(difference)) * Matrix4x4.CreateRotationX(MathHelper.DegreesToRadians(difference));
-            var view = Matrix4x4.CreateLookAt(CameraPosition, CameraTarget, CameraUp);
-            var projection = Matrix4x4.CreatePerspectiveFieldOfView(MathHelper.DegreesToRadians(45.0f), (float)MainWindow.Size.X / MainWindow.Size.Y, 0.1f, 100.0f);
-
-            shader.SetMatrix("uModel", model);
-            shader.SetMatrix("uView", view);
-            shader.SetMatrix("uProjection", projection);
+            //Debug.WriteLine(camera.ViewMatrix);
 
             Graphics.GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+
+            FrameTimer += deltaTime;
+            FrameCount++;
+            if (FrameTimer > 1)
+            {
+                FrameTimer -= 1;
+                framesPerSecond = FrameCount.ToString();
+                FrameCount = 0;
+            }
+
+            ImGuiNET.ImGui.Begin("FPS");
+            ImGuiNET.ImGui.Text(framesPerSecond);
+            ImGuiNET.ImGui.End();
+
+            controller.Render();
         }
 
         void onClose()
@@ -179,6 +259,8 @@ namespace SiestaFrame
             VAO.Dispose();
             shader.Dispose();
             texture.Dispose();
+            controller.Dispose();
+            inputContext.Dispose();
         }
 
         void KeyDown(IKeyboard arg1, Key arg2, int arg3)
@@ -187,6 +269,39 @@ namespace SiestaFrame
             {
                 MainWindow.Close();
             }
+        }
+
+        void onMouseUp(IMouse mouse, MouseButton mouseButton)
+        {
+        }
+
+        void onMouseDown(IMouse mouse, MouseButton mouseButton)
+        {
+        }
+
+        void onMouseMove(IMouse mouse, Vector2 position)
+        {
+            var lookSensitivity = 0.1f;
+            if (LastMousePosition == default) { LastMousePosition = position; }
+            else
+            {
+                var xOffset = (position.X - LastMousePosition.X) * lookSensitivity;
+                var yOffset = (position.Y - LastMousePosition.Y) * lookSensitivity;
+                LastMousePosition = position;
+
+                camera.Yaw = (camera.Yaw + xOffset) % 360;
+                camera.Pitch = Math.Clamp(camera.Pitch + yOffset, -89.0f, 89.0f);
+            }
+        }
+
+        void onMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
+        {
+            camera.FOV = Math.Clamp(camera.FOV - scrollWheel.Y, 1.0f, 45f);
+        }
+
+        void onFramebufferResize(Vector2D<int> size)
+        {
+            Graphics.GL.Viewport(size);
         }
     }
 }

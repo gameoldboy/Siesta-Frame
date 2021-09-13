@@ -1,7 +1,7 @@
 ﻿using Silk.NET.OpenGL;
 using System;
 using System.IO;
-using System.Numerics;
+using Unity.Mathematics;
 
 namespace SiestaFrame.Rendering
 {
@@ -63,7 +63,7 @@ namespace SiestaFrame.Rendering
             Graphics.GL.Uniform1(location, value);
         }
 
-        public unsafe void SetMatrix(string name, Matrix4x4 value)
+        public unsafe void SetMatrix(string name, float4x4 value)
         {
             //A new overload has been created for setting a uniform so we can use the transform in our shader.
             int location = Graphics.GL.GetUniformLocation(_handle, name);
