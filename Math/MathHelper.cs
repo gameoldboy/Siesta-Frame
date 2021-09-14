@@ -26,6 +26,11 @@ namespace SiestaFrame
             return new float3(vec.X, vec.Y, vec.Z);
         }
 
+        public static float4 ToFloat4(System.Numerics.Vector4 vec)
+        {
+            return new float4(vec.X, vec.Y, vec.Z, vec.W);
+        }
+
         public static quaternion FromEulerAngles(float x, float y, float z)
         {
             return quaternion.Euler(x, y, z);

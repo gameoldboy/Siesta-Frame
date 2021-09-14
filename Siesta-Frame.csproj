@@ -6,6 +6,7 @@
     <RootNamespace>SiestaFrame</RootNamespace>
 	<AllowUnsafeBlocks>True</AllowUnsafeBlocks>
 	<ApplicationIcon>App.ico</ApplicationIcon>
+	<RunPostBuildEvent>Always</RunPostBuildEvent>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
@@ -16,6 +17,7 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-alpha.1.21459.4" />
     <PackageReference Include="Silk.NET" Version="2.8.0" />
+    <PackageReference Include="Silk.NET.Assimp" Version="2.8.0" />
     <PackageReference Include="Silk.NET.OpenGL.Extensions.ImGui" Version="2.8.0" />
     <!--<PackageReference Include="SixLabors.ImageSharp" Version="1.0.3" />-->
   </ItemGroup>
@@ -45,7 +47,7 @@
   </ItemGroup>
 
   <Target Name="PostBuild" AfterTargets="PostBuildEvent">
-    <Exec Command="xcopy $(ProjectDir)Shaders\* $(ProjectDir)$(OutDir)Shaders\ /e /y /d" />
+    <Exec Command="xcopy $(ProjectDir)Shaders\* $(ProjectDir)$(OutDir)Shaders\ /e /y /d&#xD;&#xA;xcopy $(ProjectDir)Models\* $(ProjectDir)$(OutDir)Models\ /e /y /d&#xD;&#xA;xcopy $(ProjectDir)Textures\* $(ProjectDir)$(OutDir)Textures\ /e /y /d" />
   </Target>
 
 </Project>

@@ -25,69 +25,13 @@ namespace SiestaFrame
         IInputContext inputContext;
         IKeyboard primaryKeyboard;
 
-        BufferObject<float> VBO;
-        BufferObject<uint> EBO;
-        VertexArrayObject<float, uint> VAO;
-
         Shader shader;
         Texture texture;
 
         Camera camera;
-        Transform box;
+        Mesh Suzanne;
 
         Vector2 LastMousePosition;
-
-        readonly float[] vertices =
-       {
-           //X      Y      Z      U     V
-            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-             0.5f, -0.5f, -0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 0.0f,
-
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 1.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-
-            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f, -0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f, -0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f, -0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f, -0.5f, -0.5f,  0.0f, 1.0f,
-
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f,
-             0.5f,  0.5f, -0.5f,  1.0f, 1.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-             0.5f,  0.5f,  0.5f,  1.0f, 0.0f,
-            -0.5f,  0.5f,  0.5f,  0.0f, 0.0f,
-            -0.5f,  0.5f, -0.5f,  0.0f, 1.0f
-        };
-
-        readonly uint[] indices =
-        {
-            0, 1, 3,
-            1, 2, 3
-        };
 
         public App()
         {
@@ -111,6 +55,7 @@ namespace SiestaFrame
             options.Title = "Siesta Frame";
             options.WindowBorder = WindowBorder.Fixed;
             //options.VSync = false;
+            Silk.NET.GLFW.GlfwProvider.GLFW.Value.WindowHint(Silk.NET.GLFW.WindowHintInt.Samples, 4);
 
             MainWindow = Window.Create(options);
 
@@ -149,28 +94,20 @@ namespace SiestaFrame
                 inputContext.Mice[i].Scroll += onMouseWheel;
             }
 
-            EBO = new BufferObject<uint>(indices, BufferTargetARB.ElementArrayBuffer);
-            VBO = new BufferObject<float>(vertices, BufferTargetARB.ArrayBuffer);
-            VAO = new VertexArrayObject<float, uint>(VBO, EBO);
+            Graphics.GL.Enable(EnableCap.Multisample);
+            Graphics.GL.Enable(EnableCap.FramebufferSrgb);
+            clearColor = math.pow(clearColor, 2.2f);
 
-            // 顶点坐标
-            VAO.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, 5, 0);
-            // 顶点UV
-            VAO.VertexAttributePointer(1, 2, VertexAttribPointerType.Float, 5, 3);
-            // 顶点颜色
-            //VAO.VertexAttributePointer(2, 4, VertexAttribPointerType.Float, 9, 5);
+            Suzanne = ModelLoader.Load(@"Models\Suzanne.obj");
 
             shader = new Shader("vert.glsl", "frag.glsl");
 
-            texture = new Texture(AppResource.logo);
+            texture = new Texture(@"Textures\5C4E41_CCCDD6_9B979B_B1AFB0-512px.png");
 
             camera = new Camera();
             camera.Aspect = (float)MainWindow.Size.X / MainWindow.Size.Y;
             camera.Transform.EulerAngles = new(0, 180f, 0);
             camera.UpdateYawPaitch();
-
-            box = new Transform();
-            //box.Right = new Vector3(0.5f, 0.5f, 0.5f);
 
             //Graphics.GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         }
@@ -186,7 +123,7 @@ namespace SiestaFrame
             var ty = math.sin((float)MainWindow.Time * s % 1f * r + r * 0.333f) * u;
             var tz = math.sin((float)MainWindow.Time * s % 1f * r + r * 0.667f) * u;
 
-            box.Rotation = MathHelper.Rotate(new float3(tx * deltaTimef, ty * deltaTimef, tz * deltaTimef), box.Rotation);
+            //box.Rotation = MathHelper.Rotate(new float3(tx * deltaTimef, ty * deltaTimef, tz * deltaTimef), box.Rotation);
 
             var moveSpeed = 2.5f * deltaTimef;
 
@@ -214,6 +151,8 @@ namespace SiestaFrame
         string framesPerSecond = "?";
         double FrameTimer = 0;
 
+        float4 clearColor = new float4(0.85f, 0.87f, 0.89f, 1f);
+
         unsafe void onRender(double deltaTime)
         {
             var deltaTimef = (float)deltaTime;
@@ -221,20 +160,25 @@ namespace SiestaFrame
             controller.Update(deltaTimef);
 
             Graphics.GL.Enable(EnableCap.DepthTest);
-            Graphics.GL.ClearColor(0.85f, 0.87f, 0.89f, 1f);
+            Graphics.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             Graphics.GL.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
 
-            VAO.Bind();
-            texture.Bind();
+            Suzanne.VAO.Bind();
             shader.Use();
-            shader.SetInt("uTexture0", 0);
-            shader.SetMatrix("uModel", box.ViewMatrix);
+
+            shader.SetMatrix("uModel", float4x4.identity);
             shader.SetMatrix("uView", camera.ViewMatrix);
             shader.SetMatrix("uProjection", camera.ProjectionMatrix);
 
+            texture.Bind();
+            shader.SetInt("uTexture0", 0);
+
+            shader.SetVector("viewPos", camera.Transform.Position);
+
             //Debug.WriteLine(camera.ViewMatrix);
 
-            Graphics.GL.DrawArrays(PrimitiveType.Triangles, 0, 36);
+            Graphics.GL.DrawElements(PrimitiveType.Triangles, (uint)Suzanne.Indices.Length, DrawElementsType.UnsignedInt, null);
+            Graphics.GL.BindVertexArray(0);
 
             FrameTimer += deltaTime;
             FrameCount++;
@@ -254,11 +198,11 @@ namespace SiestaFrame
 
         void onClose()
         {
-            VBO.Dispose();
-            EBO.Dispose();
-            VAO.Dispose();
+            Suzanne.VBO.Dispose();
+            Suzanne.EBO.Dispose();
+            Suzanne.VAO.Dispose();
             shader.Dispose();
-            texture.Dispose();
+            texture?.Dispose();
             controller.Dispose();
             inputContext.Dispose();
         }

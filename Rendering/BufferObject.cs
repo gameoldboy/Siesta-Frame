@@ -3,7 +3,7 @@ using System;
 
 namespace SiestaFrame.Rendering
 {
-    class BufferObject<TDataType> : IDisposable
+    public class BufferObject<TDataType> : IDisposable
         where TDataType : unmanaged
     {
         uint _handle;

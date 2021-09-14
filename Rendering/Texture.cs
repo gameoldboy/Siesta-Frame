@@ -4,6 +4,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using System;
 using System.Runtime.InteropServices;
+using Unity.Mathematics;
 
 namespace SiestaFrame.Rendering
 {
@@ -15,6 +16,17 @@ namespace SiestaFrame.Rendering
         {
             Image<Rgba32> img = (Image<Rgba32>)Image.Load(path);
             img.Mutate(x => x.Flip(FlipMode.Vertical));
+            for (int i = 0; i < img.Width; i++)
+            {
+                for (int j = 0; j < img.Height; j++)
+                {
+                    var rgba = img[i, j].ToScaledVector4();
+                    rgba.X = math.pow(rgba.X, 2.2f);
+                    rgba.Y = math.pow(rgba.Y, 2.2f);
+                    rgba.Z = math.pow(rgba.Z, 2.2f);
+                    img[i, j] = new Rgba32(rgba);
+                }
+            }
 
             fixed (void* data = &MemoryMarshal.GetReference(img.GetPixelRowSpan(0)))
             {
@@ -28,6 +40,17 @@ namespace SiestaFrame.Rendering
         {
             Image<Rgba32> img = (Image<Rgba32>)Image.Load(buffer);
             img.Mutate(x => x.Flip(FlipMode.Vertical));
+            for (int i = 0; i < img.Width; i++)
+            {
+                for (int j = 0; j < img.Height; j++)
+                {
+                    var rgba = img[i, j].ToScaledVector4();
+                    rgba.X = math.pow(rgba.X, 2.2f);
+                    rgba.Y = math.pow(rgba.Y, 2.2f);
+                    rgba.Z = math.pow(rgba.Z, 2.2f);
+                    img[i, j] = new Rgba32(rgba);
+                }
+            }
 
             fixed (void* data = &MemoryMarshal.GetReference(img.GetPixelRowSpan(0)))
             {

@@ -74,6 +74,16 @@ namespace SiestaFrame.Rendering
             Graphics.GL.UniformMatrix4(location, 1, false, (float*)&value);
         }
 
+        public void SetVector(string name, float3 value)
+        {
+            int location = Graphics.GL.GetUniformLocation(_handle, name);
+            if (location == -1)
+            {
+                throw new Exception($"{name} uniform not found on shader.");
+            }
+            Graphics.GL.Uniform3(location, value.x, value.y, value.z);
+        }
+
         public void Dispose()
         {
             Graphics.GL.DeleteProgram(_handle);
