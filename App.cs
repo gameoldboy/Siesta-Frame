@@ -1,12 +1,10 @@
-﻿using SiestaFrame.Object;
-using SiestaFrame.Rendering;
+﻿using SiestaFrame.Rendering;
 using SiestaFrame.SceneManagement;
 using Silk.NET.Input;
 using Silk.NET.Maths;
-using Silk.NET.OpenGL;
 using System;
-using System.Diagnostics;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Unity.Mathematics;
 
 namespace SiestaFrame
@@ -21,6 +19,12 @@ namespace SiestaFrame
 
         Vector2 LastMousePosition;
 
+#if DEBUG && WIN32
+        [DllImport("kernel32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool AllocConsole();
+#endif
+
         public App()
         {
             Instance = this;
@@ -28,6 +32,9 @@ namespace SiestaFrame
 
         public unsafe void Init()
         {
+#if DEBUG && WIN32
+            AllocConsole();
+#endif
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
 
@@ -42,7 +49,7 @@ namespace SiestaFrame
             MainWindow.Closing += onClose;
 
             AudioEngine = new Audio.Engine();
-            AudioEngine.PlaySound(@"Assets\Sounds\Sugoi Kawai Desu Ne!.ogg");
+            AudioEngine.PlaySound(@"Assets/Sounds/Sugoi Kawai Desu Ne!.ogg");
 
             MainWindow.Wait();
         }
@@ -71,8 +78,8 @@ namespace SiestaFrame
 
             var box = Utilities.LoadModel("box.obj");
             var suzanne = Utilities.LoadModel("Suzanne.obj");
-            var nanosuit = Utilities.LoadModel(@"nanosuit\nanosuit.obj");
-            var head = Utilities.LoadModel(@"lpshead\head.OBJ");
+            var nanosuit = Utilities.LoadModel(@"nanosuit/nanosuit.obj");
+            var head = Utilities.LoadModel(@"lpshead/head.OBJ");
             var floor = Utilities.LoadModel("floor.obj");
 
             foreach (var material in floor.Materials)
@@ -176,7 +183,7 @@ namespace SiestaFrame
                 }
             }
 
-            //Debug.WriteLine(camera.Transform.Position);
+            //Console.WriteLine(camera.Transform.Position);
         }
 
         int FrameCount = 0;

@@ -1,12 +1,11 @@
 ﻿using ImGuiNET;
-using SiestaFrame.Rendering;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
 using Silk.NET.OpenGL.Extensions.ImGui;
 using Silk.NET.Windowing;
 using System;
-using System.Diagnostics;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Glfw = Silk.NET.GLFW.Glfw;
@@ -155,9 +154,9 @@ namespace SiestaFrame
             var maxFragmentUniformComponents = Rendering.GraphicsAPI.GL.GetInteger(GLEnum.MaxFragmentUniformComponents);
             var maxUniformBlockSize = Rendering.GraphicsAPI.GL.GetInteger(GLEnum.MaxUniformBlockSize);
 
-            Debug.WriteLine($"OpenGl Version:{version}");
-            Debug.WriteLine($"MaxElementsVertices:{maxElementsVertices}, MaxElementsIndices:{maxElementsIndices}");
-            Debug.WriteLine($"MaxVertexUniformComponents:{maxVertexUniformComponents}, MaxFragmentUniformComponents:{maxFragmentUniformComponents} ,maxUniformBlockSize:{maxUniformBlockSize}");
+            Console.WriteLine($"OpenGl Version:{version}");
+            Console.WriteLine($"MaxElementsVertices:{maxElementsVertices}, MaxElementsIndices:{maxElementsIndices}");
+            Console.WriteLine($"MaxVertexUniformComponents:{maxVertexUniformComponents}, MaxFragmentUniformComponents:{maxFragmentUniformComponents} ,maxUniformBlockSize:{maxUniformBlockSize}");
 
             Load?.Invoke();
         }

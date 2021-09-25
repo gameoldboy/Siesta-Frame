@@ -2,7 +2,7 @@
 using SiestaFrame.SceneManagement;
 using Silk.NET.Assimp;
 using System.Collections.Generic;
-using System.Diagnostics;
+using System;
 using System.IO;
 using System.Numerics;
 using Unity.Mathematics;
@@ -78,7 +78,7 @@ namespace SiestaFrame
                 }
 
                 Meshes.Add(new Mesh(vertices.ToArray(), indices.ToArray()));
-                Debug.WriteLine($"name:{mesh->MName}, vertices:{vertices.Count}, indices:{indices.Count}");
+                Console.WriteLine($"name:{mesh->MName}, vertices:{vertices.Count}, indices:{indices.Count}");
 
                 // 贴图
                 var sceneManager = SceneManager.Instance;
@@ -131,7 +131,7 @@ namespace SiestaFrame
                 {
                     texturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(modelPath)), assimpString.AsString);
                 }
-                Debug.WriteLine($"texture:{texturePath}");
+                Console.WriteLine($"texture:{texturePath}");
                 return texturePath;
             }
             return null;

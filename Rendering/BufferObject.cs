@@ -17,7 +17,7 @@ namespace SiestaFrame.Rendering
             Bind();
             fixed (void* d = &data[0])
             {
-                //System.Diagnostics.Debug.WriteLine($"sizeof:{sizeof(TDataType)}, length:{data.Length}");
+                //Console.WriteLine($"sizeof:{sizeof(TDataType)}, length:{data.Length}");
                 GraphicsAPI.GL.BufferData(bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
             }
         }

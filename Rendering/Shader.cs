@@ -47,7 +47,7 @@ namespace SiestaFrame.Rendering
                 binaryFormat = (GLEnum)reader.ReadUInt32();
                 buffer = reader.ReadBytes((int)(stream.Length - 4));
             }
-            System.Diagnostics.Debug.WriteLine($"length:{buffer.Length}, binaryFormat:{binaryFormat}");
+            Console.WriteLine($"length:{buffer.Length}, binaryFormat:{binaryFormat}");
             _handle = GraphicsAPI.GL.CreateProgram();
             fixed (void* b = buffer)
             {
@@ -141,7 +141,7 @@ namespace SiestaFrame.Rendering
                 GraphicsAPI.GL.GetProgramBinary(_handle, 0x1000000, out length, out binaryFormat, b);
             }
 
-            System.Diagnostics.Debug.WriteLine($"length:{length}, binaryFormat:{binaryFormat}");
+            Console.WriteLine($"length:{length}, binaryFormat:{binaryFormat}");
 
             using (var stream = new FileStream(Path.Combine("Shaders", path), FileMode.OpenOrCreate))
             using (var writer = new BinaryWriter(stream))

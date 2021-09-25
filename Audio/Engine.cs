@@ -26,8 +26,8 @@ namespace SiestaFrame.Audio
             Factory.System_Create(out system);
             system.getVersion(out var ver);
             system.getDSPBufferSize(out var bufferlength, out var numbuffers);
-            Debug.WriteLine($"FMOD Version:{ver}");
-            Debug.WriteLine($"bufferlength:{bufferlength}, numbuffers:{numbuffers}");
+            Console.WriteLine($"FMOD Version:{ver}");
+            Console.WriteLine($"bufferlength:{bufferlength}, numbuffers:{numbuffers}");
             system.init(512, INITFLAGS.NORMAL, (IntPtr)0);
             system.createChannelGroup("Default", out main);
             system.createChannelGroup("SE", out se);

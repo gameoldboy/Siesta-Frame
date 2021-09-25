@@ -32,6 +32,10 @@
 		<DebugSymbols>false</DebugSymbols>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(OS)'=='Windows_NT'">
+		<DefineConstants>WIN32</DefineConstants>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="ImGui.NET" Version="1.78.0" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-alpha.1.21474.1" />
