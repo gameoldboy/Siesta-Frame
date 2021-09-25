@@ -30,22 +30,22 @@ void main()
 {
     vec2 uv = _TexCoords.xy * _TilingOffset.xy + _TilingOffset.zw;
     vec4 baseMapColor = texture(_BaseMap, uv);
-    vec3 normapMapVec = vec3(texture(_NormalMap, uv).xy, 0f);
-    normapMapVec = (normapMapVec * 2f - 1f) * _NormalScale;
-    normapMapVec.z = sqrt(1f - normapMapVec.x * normapMapVec.x - normapMapVec.y * normapMapVec.y);
+    vec3 normapMapVec = vec3(texture(_NormalMap, uv).xy, 0.0);
+    normapMapVec = (normapMapVec * 2.0 - 1.0) * _NormalScale;
+    normapMapVec.z = sqrt(1.0 - normapMapVec.x * normapMapVec.x - normapMapVec.y * normapMapVec.y);
     
     vec3 normalWS = normalize(_TBN * normapMapVec);
 
-    vec3 normalVS = (MatrixView * vec4(normalWS, 0f)).xyz * 0.5f + 0.5f;
+    vec3 normalVS = (MatrixView * vec4(normalWS, 0.0)).xyz * 0.5 + 0.5;
     vec3 matcap = texture(_MatCapMap, normalVS.xy).xyz;
 
     vec3 mainLightDir = normalize(_MainLightDir);
-    float NdotL = max(dot(normalWS, mainLightDir), 0f);
+    float NdotL = max(dot(normalWS, mainLightDir), 0.0);
 
     vec3 viewDir = normalize(_ViewPosWS - _PositionWS);
     vec3 reflectDir = reflect(-mainLightDir, normalWS);
 
-    float specular = pow(max(dot(viewDir, reflectDir), 0.0f), 1 + 100f * _SpecularColor.w);
+    float specular = pow(max(dot(viewDir, reflectDir), 0.0), 1.0 + 100.0 * _SpecularColor.w);
 
     vec3 finalColor = (matcap * _MatCapColor + NdotL) * baseMapColor.xyz * _BaseColor.xyz +
                       specular * _SpecularColor.xyz;

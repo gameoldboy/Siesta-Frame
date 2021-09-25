@@ -19,11 +19,11 @@ out mat3 _TBN;
 
 void main()
 {
-    gl_Position = MatrixProjection * MatrixView * MatrixModel * vec4(PositionOS, 1.0f);
-    _PositionWS = (MatrixModel * vec4(PositionOS, 1.0f)).xyz;
+    gl_Position = MatrixProjection * MatrixView * MatrixModel * vec4(PositionOS, 1.0);
+    _PositionWS = (MatrixModel * vec4(PositionOS, 1.0)).xyz;
     _TexCoords = TexCoords;
-    vec3 normalWS = normalize((MatrixModel * vec4(NormalOS, 0f)).xyz);
-    vec3 tangentWS = normalize((MatrixModel * vec4(TangentOS, 0f)).xyz);
-    vec3 bitangentWS = normalize((MatrixModel * vec4(BitangentOS, 0f)).xyz);
+    vec3 normalWS = normalize((MatrixModel * vec4(NormalOS, 0.0)).xyz);
+    vec3 tangentWS = normalize((MatrixModel * vec4(TangentOS, 0.0)).xyz);
+    vec3 bitangentWS = normalize((MatrixModel * vec4(BitangentOS, 0.0)).xyz);
     _TBN = mat3(tangentWS, bitangentWS, normalWS);
 } 
