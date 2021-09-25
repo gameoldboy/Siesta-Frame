@@ -1,30 +1,54 @@
 #version 330 core
 
-in vec2 uv;
-in vec3 normalWS;
-in vec3 normalVS;
-in vec3 worldPos;
+in vec3 _PositionWS;
+in vec4 _TexCoords;
+in mat3 _TBN;
 
-uniform sampler2D uTexture0;
-uniform vec3 viewPos;
+uniform vec4 _BaseColor;
+uniform sampler2D _BaseMap;
+uniform vec4 _TilingOffset;
+uniform float _NormalScale;
+uniform sampler2D _NormalMap;
+uniform float _Smoothness;
+uniform float _Metallic;
+uniform sampler2D _MetallicMap;
+uniform vec4 _SpecularColor;
+uniform sampler2D _SpecularMap;
+uniform vec3 _EmissiveColor;
+uniform sampler2D _EmissiveMap;
+uniform float _OcclusionStrength;
+uniform sampler2D _OcclusionMap;
+uniform vec3 _MatCapColor;
+uniform sampler2D _MatCapMap;
+uniform vec3 _ViewPosWS;
+uniform vec3 _MainLightDir;
+uniform mat4 MatrixView;
 
 out vec4 FragColor;
 
 void main()
 {
-    vec3 lightDir = normalize(vec3(1, 2, 1));
+    vec2 uv = _TexCoords.xy * _TilingOffset.xy + _TilingOffset.zw;
+    vec4 baseMapColor = texture(_BaseMap, uv);
+    vec3 normapMapVec = vec3(texture(_NormalMap, uv).xy, 0f);
+    normapMapVec = (normapMapVec * 2f - 1f) * _NormalScale;
+    normapMapVec.z = sqrt(1f - normapMapVec.x * normapMapVec.x - normapMapVec.y * normapMapVec.y);
+    
+    vec3 normalWS = normalize(_TBN * normapMapVec);
 
-    vec3 matcapNrm = normalize(normalVS) * 0.5 + 0.5;
-    vec4 matcap = texture(uTexture0, matcapNrm.xy);
+    vec3 normalVS = (MatrixView * vec4(normalWS, 0f)).xyz * 0.5f + 0.5f;
+    vec3 matcap = texture(_MatCapMap, normalVS.xy).xyz;
 
-    vec3 normal = normalize(normalWS);
-    float NdotL = max(dot(normal, lightDir), 0);
+    vec3 mainLightDir = normalize(_MainLightDir);
+    float NdotL = max(dot(normalWS, mainLightDir), 0f);
 
-    vec3 viewDir = normalize(viewPos - worldPos);
-    vec3 reflectDir = reflect(-lightDir, normal);
+    vec3 viewDir = normalize(_ViewPosWS - _PositionWS);
+    vec3 reflectDir = reflect(-mainLightDir, normalWS);
 
-    float specular = pow(max(dot(viewDir, reflectDir), 0.0), 100);
+    float specular = pow(max(dot(viewDir, reflectDir), 0.0f), 1 + 100f * _SpecularColor.w);
 
-    float NdotV = dot(normal, viewDir);
-    FragColor = matcap * 0.5 + NdotL * 0.5 + specular;
+    vec3 finalColor = (matcap * _MatCapColor + NdotL) * baseMapColor.xyz * _BaseColor.xyz +
+                      specular * _SpecularColor.xyz;
+
+    FragColor = vec4(finalColor, baseMapColor.w * _BaseColor.w);
 }

@@ -11,26 +11,27 @@ namespace SiestaFrame.Rendering
 
         public VertexArrayObject(BufferObject<TVertexType> vbo, BufferObject<TIndexType> ebo)
         {
-            _handle = Graphics.GL.GenVertexArray();
+            _handle = GraphicsAPI.GL.GenVertexArray();
             Bind();
             vbo.Bind();
             ebo.Bind();
         }
 
-        public unsafe void VertexAttributePointer(uint index, int count, VertexAttribPointerType type, uint vertexSize, int offSet)
+        public unsafe void VertexAttributePointer<TVertexBaseType>(uint index, int count, VertexAttribPointerType type, uint vertexSize, int offSet)
+            where TVertexBaseType : unmanaged
         {
-            Graphics.GL.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexType), (void*)(offSet * sizeof(TVertexType)));
-            Graphics.GL.EnableVertexAttribArray(index);
+            GraphicsAPI.GL.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexBaseType), (void*)(offSet * sizeof(TVertexBaseType)));
+            GraphicsAPI.GL.EnableVertexAttribArray(index);
         }
 
         public void Bind()
         {
-            Graphics.GL.BindVertexArray(_handle);
+            GraphicsAPI.GL.BindVertexArray(_handle);
         }
 
         public void Dispose()
         {
-            Graphics.GL.DeleteVertexArray(_handle);
+            GraphicsAPI.GL.DeleteVertexArray(_handle);
         }
     }
 }

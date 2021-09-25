@@ -1,0 +1,79 @@
+# Blender MTL File: 'None'
+# Material Count: 6
+
+newmtl Arm
+Ns 96.078443
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump arm_showroom_ddn.gobt
+map_Kd arm_dif.gobt
+map_Ks arm_showroom_spec.gobt
+
+newmtl Body
+Ns 96.078443
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump body_showroom_ddn.gobt
+map_Kd body_dif.gobt
+map_Ks body_showroom_spec.gobt
+
+newmtl Glass
+Ns 96.078443
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump glass_ddn.gobt
+map_Kd glass_dif.gobt
+
+newmtl Hand
+Ns 96.078443
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump hand_showroom_ddn.gobt
+map_Kd hand_dif.gobt
+map_Ks hand_showroom_spec.gobt
+
+newmtl Helmet
+Ns 96.078443
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump helmet_showroom_ddn.gobt
+map_Kd helmet_diff.gobt
+map_Ks helmet_showroom_spec.gobt
+
+newmtl Leg
+Ns 96.078443
+Ka 1.000000 1.000000 1.000000
+Kd 0.640000 0.640000 0.640000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.000000
+d 1.000000
+illum 2
+map_Bump leg_showroom_ddn.gobt
+map_Kd leg_dif.gobt
+map_Ks leg_showroom_spec.gobt

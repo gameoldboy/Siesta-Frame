@@ -1,17 +1,13 @@
-﻿using SiestaFrame.Entity;
+﻿using SiestaFrame.Object;
 using SiestaFrame.Rendering;
+using SiestaFrame.SceneManagement;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Silk.NET.OpenGL.Extensions.ImGui;
-using Silk.NET.Windowing;
 using System;
 using System.Diagnostics;
-using System.Linq;
 using System.Numerics;
 using Unity.Mathematics;
-using Shader = SiestaFrame.Rendering.Shader;
-using Texture = SiestaFrame.Rendering.Texture;
 
 namespace SiestaFrame
 {
@@ -19,17 +15,9 @@ namespace SiestaFrame
     {
         public static App Instance { get; private set; }
 
-        public IWindow MainWindow { get; private set; }
-
-        ImGuiController controller;
-        IInputContext inputContext;
-        IKeyboard primaryKeyboard;
-
-        Shader shader;
-        Texture texture;
-
-        Camera camera;
-        Mesh Suzanne;
+        public SiestaWindow MainWindow { get; private set; }
+        public Audio.Engine AudioEngine { get; private set; }
+        public SceneManager SceneManager { get; private set; }
 
         Vector2 LastMousePosition;
 
@@ -43,143 +31,167 @@ namespace SiestaFrame
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
 
-            foreach (var s in Window.Platforms.Select
-                (x => $"IsApplicable: {x.IsApplicable} | IsViewOnly: {x.IsViewOnly}"))
-                Debug.WriteLine(s);
-
-            var options = WindowOptions.Default;
-            //options.API = new GraphicsAPI(
-            //    ContextAPI.OpenGL, ContextProfile.Core,
-            //    ContextFlags.ForwardCompatible, new APIVersion(4, 6));
-            options.Size = new Vector2D<int>(1280, 720);
-            options.Title = "Siesta Frame";
-            options.WindowBorder = WindowBorder.Fixed;
-            //options.VSync = false;
-            Silk.NET.GLFW.GlfwProvider.GLFW.Value.WindowHint(Silk.NET.GLFW.WindowHintInt.Samples, 4);
-
-            MainWindow = Window.Create(options);
+            MainWindow = new SiestaWindow("Siesta Frame *Demo v0.02*", new Vector2D<int>(1280, 720));
 
             MainWindow.Load += onLoad;
             MainWindow.Update += onUpdate;
             MainWindow.Render += onRender;
+            MainWindow.GUI += onGUI;
+            MainWindow.Resize += onResize;
+            MainWindow.FocusChanged += onFocusChanged;
             MainWindow.Closing += onClose;
-            MainWindow.FramebufferResize += onFramebufferResize;
 
-            MainWindow.Run();
+            AudioEngine = new Audio.Engine();
+            AudioEngine.PlaySound(@"Assets\Sounds\Sugoi Kawai Desu Ne!.ogg");
+
+            MainWindow.Wait();
         }
 
         unsafe void onLoad()
         {
-            var icon = Utilities.LoadIcon(AppResource.logo);
-            MainWindow.SetWindowIcon(ref icon);
-
-            MainWindow.Center();
-
-            controller = new ImGuiController(
-                Graphics.GL = GL.GetApi(MainWindow),
-                MainWindow,
-                inputContext = MainWindow.CreateInput()
-            );
-            primaryKeyboard = inputContext.Keyboards.FirstOrDefault();
-            for (int i = 0; i < inputContext.Keyboards.Count; i++)
+            foreach (var keyboard in MainWindow.InputContext.Keyboards)
             {
-                inputContext.Keyboards[i].KeyDown += KeyDown;
+                keyboard.KeyDown += KeyDown;
+                keyboard.KeyUp += KeyUp;
             }
-            for (int i = 0; i < inputContext.Mice.Count; i++)
+            foreach (var mouse in MainWindow.InputContext.Mice)
             {
-                inputContext.Mice[i].Cursor.CursorMode = CursorMode.Raw;
-                inputContext.Mice[i].MouseUp += onMouseUp;
-                inputContext.Mice[i].MouseDown += onMouseDown;
-                inputContext.Mice[i].MouseMove += onMouseMove;
-                inputContext.Mice[i].Scroll += onMouseWheel;
+                mouse.Cursor.CursorMode = CursorMode.Raw;
+                mouse.MouseUp += onMouseUp;
+                mouse.MouseDown += onMouseDown;
+                mouse.MouseMove += onMouseMove;
+                mouse.Scroll += onMouseWheel;
             }
 
-            Graphics.GL.Enable(EnableCap.Multisample);
-            Graphics.GL.Enable(EnableCap.FramebufferSrgb);
-            clearColor = math.pow(clearColor, 2.2f);
+            GraphicsAPI.GL.ClearColor(0.85f, 0.88f, 0.9f, 1f);
 
-            Suzanne = ModelLoader.Load(@"Models\Suzanne.obj");
+            SceneManager = new SceneManager();
+            SceneManager.LoadScene(new Scene("Demo Scene"));
+            var scene = SceneManager.Instance.CurrentScene;
 
-            shader = new Shader("vert.glsl", "frag.glsl");
+            var box = Utilities.LoadModel("box.obj");
+            var suzanne = Utilities.LoadModel("Suzanne.obj");
+            var nanosuit = Utilities.LoadModel(@"nanosuit\nanosuit.obj");
+            var head = Utilities.LoadModel(@"lpshead\head.OBJ");
+            var floor = Utilities.LoadModel("floor.obj");
 
-            texture = new Texture(@"Textures\5C4E41_CCCDD6_9B979B_B1AFB0-512px.png");
+            foreach (var material in floor.Materials)
+            {
+                material.BaseColor = new float4(1f, 1f, 1f, 1f);
+                material.BaseMap = SceneManager.AddTexture("checkerboard.gobt");
+                material.MatCapColor = new float3(0f, 0f, 0f);
+                material.SpecularColor = new float4(0f, 0f, 0f, 1f);
+                material.TilingOffset = new float4(20f, 20f, 0f, 0f);
+            }
+            foreach (var material in box.Materials)
+            {
+                material.Mode = Material.BlendMode.Alpha;
+                material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
+            }
+            foreach (var material in suzanne.Materials)
+            {
+                material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
+            }
+            foreach (var material in nanosuit.Materials)
+            {
+                material.BaseColor = new float4(1f, 1f, 1f, 1f);
+                material.MatCapColor = new float3(10f, 10f, 10f);
+                material.SpecularColor = new float4(0.5f, 0.5f, 0.5f, 0.5f);
+                material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
+            }
+            foreach (var material in head.Materials)
+            {
+                material.SpecularColor = new float4(0.1f, 0.1f, 0.1f, 0.01f);
+                material.NormalScale = 0.5f;
+                material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
+            }
 
-            camera = new Camera();
-            camera.Aspect = (float)MainWindow.Size.X / MainWindow.Size.Y;
-            camera.Transform.EulerAngles = new(0, 180f, 0);
-            camera.UpdateYawPaitch();
+            var mainLight = SceneManager.Instance.CurrentScene.MainLight;
+            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
 
-            //Graphics.GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
+            mainLight.EulerAngles = new float3(35f, 195f, 0f);
+            mainLightDir = new Vector3(mainLight.EulerAngles.x, mainLight.EulerAngles.y, mainLight.EulerAngles.z);
+
+            box.Transform.Position = new float3(-0f, 1f, 0f);
+            nanosuit.Transform.Position = new float3(-2f, 0f, 0f);
+            suzanne.Transform.Position = new float3(2f, 1f, 0f);
+            head.Transform.Position = new float3(4f, 1f, 0f);
+
+            mainCamera.Aspect = (float)MainWindow.Window.Size.X / MainWindow.Window.Size.Y;
+            mainCamera.Transform.Position = new float3(0f, 1f, 3f);
+            mainCamera.Transform.EulerAngles = new float3(0f, 180f, 0f);
+            mainCamera.UpdateYawPitch();
+
+            scene.Entites.Add(floor);
+            scene.Entites.Add(suzanne);
+            scene.Entites.Add(nanosuit);
+            scene.Entites.Add(head);
+            scene.Entites.Add(box);
+
+            //Graphics.GraphicsAPI.GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         }
 
-        void onUpdate(double deltaTime)
+        void onUpdate(float deltaTime)
         {
-            var deltaTimef = (float)deltaTime;
-
             const float s = 0.1f;
             const float r = MathF.PI * 2f;
             const float u = 1.5f;
-            var tx = math.sin((float)MainWindow.Time * s % 1f * r) * u;
-            var ty = math.sin((float)MainWindow.Time * s % 1f * r + r * 0.333f) * u;
-            var tz = math.sin((float)MainWindow.Time * s % 1f * r + r * 0.667f) * u;
+            var tx = math.sin((float)MainWindow.Window.Time * s % 1f * r) * u;
+            var ty = math.sin((float)MainWindow.Window.Time * s % 1f * r + r * 0.333f) * u;
+            var tz = math.sin((float)MainWindow.Window.Time * s % 1f * r + r * 0.667f) * u;
 
-            //box.Rotation = MathHelper.Rotate(new float3(tx * deltaTimef, ty * deltaTimef, tz * deltaTimef), box.Rotation);
+            SceneManager.CurrentScene.Entites[4].Transform.Rotation =
+                MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
+                SceneManager.CurrentScene.Entites[4].Transform.Rotation);
 
-            var moveSpeed = 2.5f * deltaTimef;
+            var moveSpeed = 20f * deltaTime;
 
-            camera.Transform.EulerAngles = new float3(camera.Pitch, camera.Yaw, 0);
+            var mainLight = SceneManager.Instance.CurrentScene.MainLight;
+            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
 
-            if (primaryKeyboard.IsKeyPressed(Key.W))
+            mainCamera.ApplyYawPitch();
+            mainLight.EulerAngles = new float3(mainLightDir.X, mainLightDir.Y, mainLightDir.Z);
+
+            foreach (var keyboard in MainWindow.InputContext.Keyboards)
             {
-                camera.Transform.Position += camera.Transform.Forward * moveSpeed;
+                if (keyboard.IsKeyPressed(Key.ShiftLeft))
+                {
+                    moveSpeed /= 8;
+                }
+                if (keyboard.IsKeyPressed(Key.W))
+                {
+                    mainCamera.Transform.Position += mainCamera.Transform.Forward * moveSpeed;
+                }
+                if (keyboard.IsKeyPressed(Key.S))
+                {
+                    mainCamera.Transform.Position -= mainCamera.Transform.Forward * moveSpeed;
+                }
+                if (keyboard.IsKeyPressed(Key.A))
+                {
+                    mainCamera.Transform.Position -= mainCamera.Transform.Right * moveSpeed;
+                }
+                if (keyboard.IsKeyPressed(Key.D))
+                {
+                    mainCamera.Transform.Position += mainCamera.Transform.Right * moveSpeed;
+                }
             }
-            if (primaryKeyboard.IsKeyPressed(Key.S))
-            {
-                camera.Transform.Position -= camera.Transform.Forward * moveSpeed;
-            }
-            if (primaryKeyboard.IsKeyPressed(Key.A))
-            {
-                camera.Transform.Position -= camera.Transform.Right * moveSpeed;
-            }
-            if (primaryKeyboard.IsKeyPressed(Key.D))
-            {
-                camera.Transform.Position += camera.Transform.Right * moveSpeed;
-            }
+
+            //Debug.WriteLine(camera.Transform.Position);
         }
 
         int FrameCount = 0;
         string framesPerSecond = "?";
         double FrameTimer = 0;
 
-        float4 clearColor = new float4(0.85f, 0.87f, 0.89f, 1f);
-
-        unsafe void onRender(double deltaTime)
+        unsafe void onRender(float deltaTime)
         {
-            var deltaTimef = (float)deltaTime;
+            SceneManager.Instance.CurrentScene.Render();
+        }
 
-            controller.Update(deltaTimef);
+        Vector3 mainLightDir;
 
-            Graphics.GL.Enable(EnableCap.DepthTest);
-            Graphics.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
-            Graphics.GL.Clear((uint)(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit));
-
-            Suzanne.VAO.Bind();
-            shader.Use();
-
-            shader.SetMatrix("uModel", float4x4.identity);
-            shader.SetMatrix("uView", camera.ViewMatrix);
-            shader.SetMatrix("uProjection", camera.ProjectionMatrix);
-
-            texture.Bind();
-            shader.SetInt("uTexture0", 0);
-
-            shader.SetVector("viewPos", camera.Transform.Position);
-
-            //Debug.WriteLine(camera.ViewMatrix);
-
-            Graphics.GL.DrawElements(PrimitiveType.Triangles, (uint)Suzanne.Indices.Length, DrawElementsType.UnsignedInt, null);
-            Graphics.GL.BindVertexArray(0);
-
+        void onGUI(float deltaTime)
+        {
             FrameTimer += deltaTime;
             FrameCount++;
             if (FrameTimer > 1)
@@ -188,30 +200,44 @@ namespace SiestaFrame
                 framesPerSecond = FrameCount.ToString();
                 FrameCount = 0;
             }
-
             ImGuiNET.ImGui.Begin("FPS");
             ImGuiNET.ImGui.Text(framesPerSecond);
+            ImGuiNET.ImGui.Text("Main Light Direction");
+            ImGuiNET.ImGui.DragFloat3("", ref mainLightDir);
             ImGuiNET.ImGui.End();
-
-            controller.Render();
         }
 
         void onClose()
         {
-            Suzanne.VBO.Dispose();
-            Suzanne.EBO.Dispose();
-            Suzanne.VAO.Dispose();
-            shader.Dispose();
-            texture?.Dispose();
-            controller.Dispose();
-            inputContext.Dispose();
+            SceneManager.Instance.CurrentScene.Dispose();
+            SceneManager.UnloadCommonPool();
+        }
+
+        void KeyUp(IKeyboard arg1, Key arg2, int arg3)
+        {
+            if (arg2 == Key.AltLeft)
+            {
+                foreach (var mouse in MainWindow.InputContext.Mice)
+                {
+                    mouse.Cursor.CursorMode = CursorMode.Raw;
+                    canMouseMove = true;
+                }
+            }
         }
 
         void KeyDown(IKeyboard arg1, Key arg2, int arg3)
         {
             if (arg2 == Key.Escape)
             {
-                MainWindow.Close();
+                MainWindow.Window.Close();
+            }
+            if (arg2 == Key.AltLeft)
+            {
+                foreach (var mouse in MainWindow.InputContext.Mice)
+                {
+                    mouse.Cursor.CursorMode = CursorMode.Normal;
+                    canMouseMove = false;
+                }
             }
         }
 
@@ -223,6 +249,8 @@ namespace SiestaFrame
         {
         }
 
+        bool canMouseMove = true;
+
         void onMouseMove(IMouse mouse, Vector2 position)
         {
             var lookSensitivity = 0.1f;
@@ -233,19 +261,32 @@ namespace SiestaFrame
                 var yOffset = (position.Y - LastMousePosition.Y) * lookSensitivity;
                 LastMousePosition = position;
 
-                camera.Yaw = (camera.Yaw + xOffset) % 360;
-                camera.Pitch = Math.Clamp(camera.Pitch + yOffset, -89.0f, 89.0f);
+                var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
+                if (windowFocus && canMouseMove)
+                {
+                    mainCamera.Yaw = (mainCamera.Yaw + xOffset) % 360;
+                    mainCamera.Pitch = Math.Clamp(mainCamera.Pitch + yOffset, -89.0f, 89.0f);
+                }
             }
         }
 
         void onMouseWheel(IMouse mouse, ScrollWheel scrollWheel)
         {
-            camera.FOV = Math.Clamp(camera.FOV - scrollWheel.Y, 1.0f, 45f);
+            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
+            mainCamera.FOV = Math.Clamp(mainCamera.FOV - scrollWheel.Y, 1.0f, 45f);
         }
 
-        void onFramebufferResize(Vector2D<int> size)
+        private void onResize(Vector2D<int> size)
         {
-            Graphics.GL.Viewport(size);
+            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
+            mainCamera.Aspect = (float)size.X / size.Y;
+        }
+
+        bool windowFocus = true;
+
+        void onFocusChanged(bool focus)
+        {
+            windowFocus = focus;
         }
     }
 }

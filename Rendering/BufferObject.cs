@@ -13,22 +13,23 @@ namespace SiestaFrame.Rendering
         {
             _bufferType = bufferType;
 
-            _handle = Graphics.GL.GenBuffer();
+            _handle = GraphicsAPI.GL.GenBuffer();
             Bind();
-            fixed (void* d = data)
+            fixed (void* d = &data[0])
             {
-                Graphics.GL.BufferData(bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
+                //System.Diagnostics.Debug.WriteLine($"sizeof:{sizeof(TDataType)}, length:{data.Length}");
+                GraphicsAPI.GL.BufferData(bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
             }
         }
 
         public void Bind()
         {
-            Graphics.GL.BindBuffer(_bufferType, _handle);
+            GraphicsAPI.GL.BindBuffer(_bufferType, _handle);
         }
 
         public void Dispose()
         {
-            Graphics.GL.DeleteBuffer(_handle);
+            GraphicsAPI.GL.DeleteBuffer(_handle);
         }
     }
 }

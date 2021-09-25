@@ -1,4 +1,4 @@
-﻿using SiestaFrame.Entity;
+﻿using SiestaFrame.Object;
 using Unity.Mathematics;
 
 namespace SiestaFrame.Rendering
@@ -30,10 +30,15 @@ namespace SiestaFrame.Rendering
             Pitch = Yaw = 0;
         }
 
-        public void UpdateYawPaitch()
+        public void ApplyYawPitch()
         {
-            Yaw = Transform.EulerAngles.x;
-            Pitch = Transform.EulerAngles.y;
+            Transform.EulerAngles = new float3(Pitch, Yaw, 0);
+        }
+
+        public void UpdateYawPitch()
+        {
+            Pitch = Transform.EulerAngles.x;
+            Yaw = Transform.EulerAngles.y;
         }
     }
 }
