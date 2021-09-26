@@ -21,12 +21,21 @@ namespace SiestaFrame.SceneManagement
             MainLight = new Transform();
         }
 
-        public void Render()
+        public void RenderShadowMap()
         {
             for (int i = 0; i < Entites.Count; i++)
             {
                 var entity = Entites[i];
-                entity.Draw(MainCamera, MainLight);
+                entity.DrawShadowMap(MainCamera, MainLight);
+            }
+        }
+
+        public void Render(uint shadowMap)
+        {
+            for (int i = 0; i < Entites.Count; i++)
+            {
+                var entity = Entites[i];
+                entity.Draw(MainCamera, MainLight, shadowMap);
             }
         }
 

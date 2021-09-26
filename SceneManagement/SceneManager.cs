@@ -74,7 +74,7 @@ namespace SiestaFrame.SceneManagement
             return null;
         }
 
-        public static void AddOrUpdateCommonTexture(Shader shader, string name1, string name2)
+        public static void AddOrUpdateCommonShader(Shader shader, string name1, string name2)
         {
             var name = $"{name1}&{name2}";
             if (commonShaderPool.ContainsKey(name))

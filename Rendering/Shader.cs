@@ -9,11 +9,12 @@ namespace SiestaFrame.Rendering
     public class Shader : IDisposable
     {
         public static Shader Default { get; }
+        public static Shader ShadowMap { get; }
 
         static Shader()
         {
-            Default = new Shader("vert.glsl", "frag.glsl");
-            SceneManager.AddOrUpdateCommonTexture(Default, "vert.glsl", "frag.glsl");
+            Default = SceneManager.AddCommonShader("DefaultVert.glsl", "DefaultFrag.glsl");
+            ShadowMap = SceneManager.AddCommonShader("ShadowMapVert.glsl", "ShadowMapFrag.glsl");
         }
 
         uint _handle;
@@ -65,13 +66,8 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.UseProgram(_handle);
         }
 
-        public void SetBool(string name, bool value)
+        public void SetBool(int location, bool value)
         {
-            int location = GraphicsAPI.GL.GetUniformLocation(_handle, name);
-            //if (location == -1)
-            //{
-            //    throw new Exception($"{name} uniform not found on shader.");
-            //}
             GraphicsAPI.GL.Uniform1(location, value ? 1 : 0);
         }
 

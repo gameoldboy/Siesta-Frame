@@ -3,6 +3,7 @@
 in vec3 _PositionWS;
 in vec4 _TexCoords;
 in mat3 _TBN;
+in vec4 _PositionLS;
 
 uniform vec4 _BaseColor;
 uniform sampler2D _BaseMap;
@@ -23,6 +24,7 @@ uniform sampler2D _MatCapMap;
 uniform vec3 _ViewPosWS;
 uniform vec3 _MainLightDir;
 uniform mat4 MatrixView;
+uniform sampler2D _ShadowMap;
 
 out vec4 FragColor;
 
@@ -47,8 +49,35 @@ void main()
 
     float specular = pow(max(dot(viewDir, reflectDir), 0.0), 1.0 + 100.0 * _SpecularColor.w);
 
-    vec3 finalColor = (matcap * _MatCapColor + NdotL) * baseMapColor.xyz * _BaseColor.xyz +
-                      specular * _SpecularColor.xyz;
+    vec3 mainLightProjCoords = _PositionLS.xyz / _PositionLS.w;
+    mainLightProjCoords = mainLightProjCoords * 0.5 + 0.5;
+    vec2 shadowMapTexelSize = 1f / textureSize(_ShadowMap, 0);
+    float currentDepth = mainLightProjCoords.z;
+    float bias = max(0.01 * (1.0 - NdotL), 0.001);
+    float shadow;
+    if(mainLightProjCoords.x < 0.0 || mainLightProjCoords.x > 1.0 ||
+       mainLightProjCoords.y < 0.0 || mainLightProjCoords.y > 1.0 ||
+       mainLightProjCoords.z < 0.0 || mainLightProjCoords.z > 1.0)
+    {
+        shadow = 1.0;
+    }
+    else
+    {
+        int count = 0;
+        for(int i = -2; i < 2; i++)
+        {
+            for (int j = -2; j < 2; j++)
+            {
+                shadow += currentDepth - bias < texture(_ShadowMap, mainLightProjCoords.xy + shadowMapTexelSize * vec2(i, j)).x ? 1.0 : 0.0;
+                count++;
+            }
+        }
+        shadow /= count;
+    }
+
+    vec3 finalColor = (matcap * _MatCapColor + NdotL * shadow) *
+                    baseMapColor.xyz * _BaseColor.xyz +
+                    specular * _SpecularColor.xyz * shadow;
 
     FragColor = vec4(finalColor, baseMapColor.w * _BaseColor.w);
 }

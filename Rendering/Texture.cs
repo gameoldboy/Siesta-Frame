@@ -174,7 +174,7 @@ namespace SiestaFrame.Rendering
                         internalFormat = InternalFormat.CompressedSrgbS3TCDxt1Ext;
                         break;
                 }
-                Console.WriteLine($"InternalFormat:{internalFormat}");
+                //Console.WriteLine($"InternalFormat:{internalFormat}");
                 var maxLevel = reader.ReadInt32();
                 for (int i = 0; i < maxLevel; i++)
                 {
@@ -182,7 +182,7 @@ namespace SiestaFrame.Rendering
                     var height = (uint)reader.ReadInt32();
                     var size = (uint)reader.ReadInt32();
                     var data = reader.ReadBytes((int)size);
-                    Console.WriteLine($"level:{i}, width:{width}, height:{height}, size:{size}");
+                    //Console.WriteLine($"level:{i}, width:{width}, height:{height}, size:{size}");
                     fixed (void* d = &data[0])
                     {
                         GraphicsAPI.GL.CompressedTexImage2D(TextureTarget.Texture2D, i, internalFormat, width, height, 0, size, d);

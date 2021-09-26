@@ -12,18 +12,23 @@ layout (location = 7) in vec4 Weights;
 uniform mat4 MatrixModel;
 uniform mat4 MatrixView;
 uniform mat4 MatrixProjection;
+uniform mat4 MatrixMainLightView;
+uniform mat4 MatrixMainLightProjection;
 
 out vec3 _PositionWS;
 out vec4 _TexCoords;
 out mat3 _TBN;
+out vec4 _PositionLS;
 
 void main()
 {
-    gl_Position = MatrixProjection * MatrixView * MatrixModel * vec4(PositionOS, 1.0);
     _PositionWS = (MatrixModel * vec4(PositionOS, 1.0)).xyz;
     _TexCoords = TexCoords;
     vec3 normalWS = normalize((MatrixModel * vec4(NormalOS, 0.0)).xyz);
     vec3 tangentWS = normalize((MatrixModel * vec4(TangentOS, 0.0)).xyz);
     vec3 bitangentWS = normalize((MatrixModel * vec4(BitangentOS, 0.0)).xyz);
     _TBN = mat3(tangentWS, bitangentWS, normalWS);
+    _PositionLS = MatrixMainLightProjection * MatrixMainLightView * vec4(_PositionWS, 1.0);
+
+    gl_Position = MatrixProjection * MatrixView * vec4(_PositionWS, 1.0);
 } 

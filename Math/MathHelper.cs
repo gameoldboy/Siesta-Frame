@@ -307,16 +307,30 @@ namespace SiestaFrame
             return Result;
         }
 
-        public static float4x4 PerspectiveFov(float fov, float aspect, float near, float far)
+        public static float4x4 PerspectiveFov(float fov, int width, int height, float near, float far)
         {
-            float tanHalfFovy = math.tan(fov / 2f);
+            float rad = fov;
+            float h = math.cos(0.5f * rad) / math.sin(0.5f * rad);
+            float w = h * height / width;
 
             var Result = float4x4.zero;
-            Result[0][0] = 1f / (aspect * tanHalfFovy);
-            Result[1][1] = 1f / (tanHalfFovy);
+            Result[0][0] = w;
+            Result[1][1] = h;
             Result[2][2] = (far + near) / (far - near);
             Result[2][3] = 1f;
             Result[3][2] = -(2f * far * near) / (far - near);
+            return Result;
+        }
+
+        public static float4x4 ortho(float left, float right, float bottom, float top, float zNear, float zFar)
+        {
+            var Result = float4x4.identity;
+            Result[0][0] = 2f / (right - left);
+            Result[1][1] = 2f / (top - bottom);
+            Result[2][2] = 2f / (zFar - zNear);
+            Result[3][0] = -(right + left) / (right - left);
+            Result[3][1] = -(top + bottom) / (top - bottom);
+            Result[3][2] = -(zFar + zNear) / (zFar - zNear);
             return Result;
         }
     }
