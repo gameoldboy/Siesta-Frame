@@ -31,4 +31,4 @@ void main()
     _PositionLS = MatrixMainLightProjection * MatrixMainLightView * vec4(_PositionWS, 1.0);
 
     gl_Position = MatrixProjection * MatrixView * vec4(_PositionWS, 1.0);
-} 
+}

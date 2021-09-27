@@ -58,5 +58,6 @@ namespace SiestaFrame.Object
         }
 
         public float4x4 ModelMatrix => MathHelper.TRS(Position, rotation, Scale);
+        public float4x4 PrevModelMatrix { get; set; }
     }
 }

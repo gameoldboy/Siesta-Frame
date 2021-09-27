@@ -24,7 +24,8 @@ uniform sampler2D _MatCapMap;
 uniform vec3 _ViewPosWS;
 uniform vec3 _MainLightDir;
 uniform mat4 MatrixView;
-uniform sampler2D _ShadowMap;
+uniform sampler2DShadow _ShadowMap;
+uniform float _ShadowRange;
 
 out vec4 FragColor;
 
@@ -44,37 +45,41 @@ void main()
     vec3 mainLightDir = normalize(_MainLightDir);
     float NdotL = max(dot(normalWS, mainLightDir), 0.0);
 
-    vec3 viewDir = normalize(_ViewPosWS - _PositionWS);
+    vec3 viewDiffPosWS = _ViewPosWS - _PositionWS;
+    vec3 viewDir = normalize(viewDiffPosWS);
     vec3 reflectDir = reflect(-mainLightDir, normalWS);
 
     float specular = pow(max(dot(viewDir, reflectDir), 0.0), 1.0 + 100.0 * _SpecularColor.w);
 
-    vec3 mainLightProjCoords = _PositionLS.xyz / _PositionLS.w;
-    mainLightProjCoords = mainLightProjCoords * 0.5 + 0.5;
-    vec2 shadowMapTexelSize = 1f / textureSize(_ShadowMap, 0);
-    float currentDepth = mainLightProjCoords.z;
-    float bias = max(0.01 * (1.0 - NdotL), 0.001);
-    float shadow;
-    if(mainLightProjCoords.x < 0.0 || mainLightProjCoords.x > 1.0 ||
-       mainLightProjCoords.y < 0.0 || mainLightProjCoords.y > 1.0 ||
-       mainLightProjCoords.z < 0.0 || mainLightProjCoords.z > 1.0)
+    vec3 shadowMapProjCoords = _PositionLS.xyz / _PositionLS.w;
+    shadowMapProjCoords = shadowMapProjCoords * 0.5 + 0.5;
+    vec2 shadowMapSize = textureSize(_ShadowMap, 0);
+    vec2 shadowMapTexelSize = 1.0 / shadowMapSize;
+    
+    float bias = max(0.002 * (1.0 - NdotL), 0.0002);
+    float mainLightDepth = shadowMapProjCoords.z - bias;
+
+    float shadow = 0;
+    if(shadowMapProjCoords.x < 0.0 || shadowMapProjCoords.x > 1.0 ||
+       shadowMapProjCoords.y < 0.0 || shadowMapProjCoords.y > 1.0 ||
+       shadowMapProjCoords.z < 0.0 || shadowMapProjCoords.z > 1.0)
     {
         shadow = 1.0;
     }
     else
     {
-        int count = 0;
-        for(int i = -2; i < 2; i++)
+        for (int i = 0; i < 9.0; i++)
         {
-            for (int j = -2; j < 2; j++)
-            {
-                shadow += currentDepth - bias < texture(_ShadowMap, mainLightProjCoords.xy + shadowMapTexelSize * vec2(i, j)).x ? 1.0 : 0.0;
-                count++;
-            }
+            shadow += texture(_ShadowMap, 
+                vec3(shadowMapProjCoords.xy + 
+                shadowMapTexelSize * vec2(mod(i, 3.0) - 1, floor(i / 3.0) - 1),
+                mainLightDepth));
         }
-        shadow /= count;
+        shadow /= 9.0;
+        float shadowFadeOut = smoothstep(_ShadowRange - 1.0, _ShadowRange, length(viewDiffPosWS));
+        shadow = mix(shadow, 1.0, shadowFadeOut);
     }
-
+    
     vec3 finalColor = (matcap * _MatCapColor + NdotL * shadow) *
                     baseMapColor.xyz * _BaseColor.xyz +
                     specular * _SpecularColor.xyz * shadow;

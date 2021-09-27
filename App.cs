@@ -1,4 +1,5 @@
-﻿using SiestaFrame.Rendering;
+﻿using ImGuiNET;
+using SiestaFrame.Rendering;
 using SiestaFrame.SceneManagement;
 using Silk.NET.Input;
 using Silk.NET.Maths;
@@ -7,7 +8,6 @@ using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
-using Shader = SiestaFrame.Rendering.Shader;
 
 namespace SiestaFrame
 {
@@ -56,16 +56,8 @@ namespace SiestaFrame
             MainWindow.Wait();
         }
 
-        Shader postPocessingShader;
-        int postPocessingMapLocation;
-        int postPocessingMatrixModelLocation;
-        int postPocessingMatrixViewLocation;
-        int postPocessingMatrixProjectionLocation;
-        readonly float[] postPocessingVertices = { -1f, -1f, 0f, 0f, 0f, 1, -1, 0f, 1f, 0f, -1f, 1f, 0f, 0f, 1f, 1f, 1f, 0f, 1f, 1f };
-        readonly uint[] postPocessingIndices = { 0u, 1u, 2u, 1u, 3u, 2u };
-        BufferObject<float> postPocessingVBO;
-        BufferObject<uint> postPocessingEBO;
-        VertexArrayObject<float, uint> postPocessingVAO;
+        ShadowMap shadowMap;
+        PostProcessing postProcessing;
 
         float4 clearColor = new float4(0.85f, 0.88f, 0.9f, 1f);
 
@@ -87,21 +79,12 @@ namespace SiestaFrame
 
             GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
 
+            shadowMap = new ShadowMap(4096, 4096);
+            postProcessing = new PostProcessing();
+
             SceneManager = new SceneManager();
             SceneManager.LoadScene(new Scene("Demo Scene"));
             var scene = SceneManager.Instance.CurrentScene;
-
-            postPocessingShader = SceneManager.AddCommonShader("PostProcessingVert.glsl", "PostProcessingFrag.glsl");
-            postPocessingMapLocation = postPocessingShader.GetUniformLocation("_BaseMap");
-            postPocessingMatrixModelLocation = postPocessingShader.GetUniformLocation("MatrixModel");
-            postPocessingMatrixViewLocation = postPocessingShader.GetUniformLocation("MatrixView");
-            postPocessingMatrixProjectionLocation = postPocessingShader.GetUniformLocation("MatrixProjection");
-            postPocessingVBO = new BufferObject<float>(postPocessingVertices, BufferTargetARB.ArrayBuffer);
-            postPocessingEBO = new BufferObject<uint>(postPocessingIndices, BufferTargetARB.ElementArrayBuffer);
-            postPocessingVAO = new VertexArrayObject<float, uint>(postPocessingVBO, postPocessingEBO);
-            postPocessingVAO.VertexAttributePointer<float>(0, 3, VertexAttribPointerType.Float, 5, 0);
-            postPocessingVAO.VertexAttributePointer<float>(1, 2, VertexAttribPointerType.Float, 5, 3);
-            GraphicsAPI.GL.BindVertexArray(0);
 
             var box = Utilities.LoadModel("box.obj");
             var suzanne = Utilities.LoadModel("Suzanne.obj");
@@ -144,9 +127,10 @@ namespace SiestaFrame
             var mainLight = SceneManager.Instance.CurrentScene.MainLight;
             var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
 
-            mainLight.Position = new float3(0f, 5, 0f);
-            mainLight.EulerAngles = new float3(45f, -30f, 0f);
-            mainLightDir = new Vector3(mainLight.EulerAngles.x, mainLight.EulerAngles.y, mainLight.EulerAngles.z);
+            mainLight.ShadowRange = 10f;
+            shadowRange = mainLight.ShadowRange;
+            mainLight.Transform.EulerAngles = new float3(45f, 130f, 0f);
+            mainLightDir = new Vector3(mainLight.Transform.EulerAngles.x, mainLight.Transform.EulerAngles.y, mainLight.Transform.EulerAngles.z);
 
             box.Transform.Position = new float3(-0f, 1f, 0f);
             nanosuit.Transform.Position = new float3(-2f, 0f, 0f);
@@ -179,19 +163,20 @@ namespace SiestaFrame
                 MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
                 SceneManager.CurrentScene.Entites[4].Transform.Rotation);
 
-            var moveSpeed = 20f * deltaTime;
+            var moveSpeed = 2.5f * deltaTime;
 
             var mainLight = SceneManager.Instance.CurrentScene.MainLight;
             var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
 
             mainCamera.ApplyYawPitch();
-            mainLight.EulerAngles = new float3(mainLightDir.X, mainLightDir.Y, mainLightDir.Z);
+            mainLight.Transform.EulerAngles = new float3(mainLightDir.X, mainLightDir.Y, mainLightDir.Z);
+            mainLight.ShadowRange = shadowRange;
 
             foreach (var keyboard in MainWindow.InputContext.Keyboards)
             {
                 if (keyboard.IsKeyPressed(Key.ShiftLeft))
                 {
-                    moveSpeed /= 8;
+                    moveSpeed *= 8;
                 }
                 if (keyboard.IsKeyPressed(Key.W))
                 {
@@ -220,25 +205,7 @@ namespace SiestaFrame
 
         unsafe void onRender(float deltaTime)
         {
-            var shadowMapFrameBuffer = GraphicsAPI.GL.GenFramebuffer();
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, shadowMapFrameBuffer);
-            var shadowMap = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, shadowMap);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, 4096u, 4096u, 0, PixelFormat.DepthComponent, PixelType.Float, null);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToBorder);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToBorder);
-            GraphicsAPI.GL.DrawBuffer(GLEnum.None);
-            GraphicsAPI.GL.ReadBuffer(GLEnum.None);
-            GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, shadowMap, 0);
-            GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
-            GraphicsAPI.GL.Clear(ClearBufferMask.DepthBufferBit);
-            GraphicsAPI.GL.Enable(EnableCap.DepthTest);
-            GraphicsAPI.GL.Viewport(0, 0, 4096u, 4096u);
-            SceneManager.Instance.CurrentScene.RenderShadowMap();
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            GraphicsAPI.GL.DeleteFramebuffer(shadowMapFrameBuffer);
+            shadowMap.RenderShadowMap(SceneManager.Instance.CurrentScene);
 
             MainWindow.BindFrameBuffer(out var colorTexture, out var depthTexture);
             GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
@@ -246,37 +213,13 @@ namespace SiestaFrame
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, (uint)MainWindow.Width, (uint)MainWindow.Height);
             SceneManager.Instance.CurrentScene.Render(shadowMap);
-            GraphicsAPI.GL.DeleteTexture(shadowMap);
 
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
-            GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit);
-            GraphicsAPI.GL.Disable(EnableCap.DepthTest);
-            GraphicsAPI.GL.Viewport(MainWindow.Window.Size);
-            postPocessingVAO.Bind();
-            postPocessingShader.Use();
-            GraphicsAPI.GL.ActiveTexture(TextureUnit.Texture0);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, colorTexture);
-            postPocessingShader.SetInt(postPocessingMapLocation, 0);
-            postPocessingShader.SetMatrix(postPocessingMatrixViewLocation, MathHelper.LookAt(math.forward(), float3.zero, math.up()));
-            var aspect = (float)MainWindow.Window.Size.X / MainWindow.Window.Size.Y;
-            if (aspect > MainWindow.Aspect)
-            {
-                postPocessingShader.SetMatrix(postPocessingMatrixModelLocation, float4x4.Scale(-MainWindow.Aspect, 1f, 1f));
-                postPocessingShader.SetMatrix(postPocessingMatrixProjectionLocation, MathHelper.ortho(-aspect, aspect, -1f, 1f, 0.1f, 2f));
-            }
-            else
-            {
-                postPocessingShader.SetMatrix(postPocessingMatrixModelLocation, float4x4.Scale(-1f, 1f / MainWindow.Aspect, 1f));
-                postPocessingShader.SetMatrix(postPocessingMatrixProjectionLocation, MathHelper.ortho(-1f, 1f, -1f / aspect, 1f / aspect, 0.1f, 2f));
-            }
-            GraphicsAPI.GL.DrawElements(PrimitiveType.Triangles, (uint)postPocessingIndices.Length, DrawElementsType.UnsignedInt, null);
-            GraphicsAPI.GL.BindVertexArray(0);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
-            GraphicsAPI.GL.UseProgram(0);
+            postProcessing.DoPostProcessing(colorTexture, depthTexture);
         }
 
         Vector3 mainLightDir;
+        float shadowRange;
+        bool vsync = true;
 
         void onGUI(float deltaTime)
         {
@@ -288,17 +231,24 @@ namespace SiestaFrame
                 framesPerSecond = FrameCount.ToString();
                 FrameCount = 0;
             }
-            ImGuiNET.ImGui.Begin("FPS");
-            ImGuiNET.ImGui.Text(framesPerSecond);
-            ImGuiNET.ImGui.Text("Main Light Direction");
-            ImGuiNET.ImGui.DragFloat3("", ref mainLightDir);
-            ImGuiNET.ImGui.End();
+            ImGui.Begin("FPS");
+            ImGui.Text(framesPerSecond);
+            ImGui.Text("Main Light Direction");
+            ImGui.DragFloat3("", ref mainLightDir);
+            if (ImGui.Checkbox("VSync", ref vsync))
+            {
+                MainWindow.Window.VSync = vsync;
+            }
+            ImGui.SliderFloat("Shadow Range", ref shadowRange, 1f, 100f);
+            ImGui.End();
         }
 
         void onClose()
         {
             SceneManager.Instance.CurrentScene.Dispose();
             SceneManager.UnloadCommonPool();
+            shadowMap.Dispose();
+            postProcessing.Dispose();
         }
 
         void KeyUp(IKeyboard arg1, Key arg2, int arg3)

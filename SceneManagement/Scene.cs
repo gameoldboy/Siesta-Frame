@@ -11,26 +11,17 @@ namespace SiestaFrame.SceneManagement
 
         public List<Entity> Entites { get; }
         public Camera MainCamera { get; set; }
-        public Transform MainLight { get; set; }
+        public Light MainLight { get; set; }
 
         public Scene(string name)
         {
             Name = name;
             Entites = new List<Entity>();
             MainCamera = new Camera();
-            MainLight = new Transform();
+            MainLight = new Light();
         }
 
-        public void RenderShadowMap()
-        {
-            for (int i = 0; i < Entites.Count; i++)
-            {
-                var entity = Entites[i];
-                entity.DrawShadowMap(MainCamera, MainLight);
-            }
-        }
-
-        public void Render(uint shadowMap)
+        public void Render(ShadowMap shadowMap)
         {
             for (int i = 0; i < Entites.Count; i++)
             {

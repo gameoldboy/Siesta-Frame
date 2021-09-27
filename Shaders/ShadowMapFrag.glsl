@@ -4,11 +4,11 @@ in vec4 _TexCoords;
 
 uniform sampler2D _BaseMap;
 uniform vec4 _TilingOffset;
-uniform bool _ShadowMapAlphaTest;
+uniform bool _AlphaTest;
 
 void main()
 {
-    if(_ShadowMapAlphaTest)
+    if(_AlphaTest)
     {
         vec2 uv = _TexCoords.xy * _TilingOffset.xy + _TilingOffset.zw;
         float baseMapAlpha = texture(_BaseMap, uv).w;

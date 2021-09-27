@@ -29,6 +29,7 @@ namespace SiestaFrame
         public int Width => size.X;
         public int Height => size.Y;
         public float Aspect { get; private set; }
+        public int MSAASamples { get; set; }
         bool focus = true;
         bool lastFocus = true;
 
@@ -51,13 +52,13 @@ namespace SiestaFrame
             this.size = size;
             windowSize = size;
             Aspect = (float)size.X / size.Y;
+            MSAASamples = msaaSamples;
             options.Size = size;
             options.Title = title;
             options.WindowBorder = WindowBorder.Hidden;
             options.PreferredBitDepth = new Vector4D<int>(8, 8, 8, 0);
             options.PreferredDepthBufferBits = 0;
             options.PreferredStencilBufferBits = 0;
-            //glfw.WindowHint(GLFW.WindowHintInt.Samples, 4);
 
             WindowTask = new Task(() => windowTask(options));
             RenderingTask = new Task(() => renderingTask());
@@ -133,6 +134,9 @@ namespace SiestaFrame
         {
             Controller.Dispose();
             InputContext.Dispose();
+            GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
+            GraphicsAPI.GL.DeleteTexture(colorAttachment);
+            GraphicsAPI.GL.DeleteTexture(depthAttachment);
 
             Closing?.Invoke();
         }
@@ -155,35 +159,10 @@ namespace SiestaFrame
             var io = ImGui.GetIO();
             io.NativePtr->IniFilename = null;
 
-            frameBuffer = GraphicsAPI.GL.GenFramebuffer();
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
-
-            colorAttachment = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, colorAttachment);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)Width, (uint)Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, colorAttachment, 0);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
-            depthAttachment = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, depthAttachment);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, (uint)Width, (uint)Width, 0, PixelFormat.DepthComponent, PixelType.Float, null);
-            //GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-            //GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depthAttachment, 0);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
-            // rbo depth版本
-            //depthAttachment = GraphicsAPI.GL.GenRenderbuffer();
-            //GraphicsAPI.GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, depthAttachment);
-            //GraphicsAPI.GL.RenderbufferStorage(RenderbufferTarget.Renderbuffer, InternalFormat.DepthComponent32f, (uint)Width, (uint)Height);
-            //GraphicsAPI.GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, depthAttachment);
-            //GraphicsAPI.GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);
-            //GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            AllocFrameBuffer();
 
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Enable(EnableCap.CullFace);
-            //GraphicsAPI.GL.Enable(EnableCap.Multisample);
 
             var version = GraphicsAPI.GL.GetStringS(GLEnum.Version);
             var maxElementsVertices = GraphicsAPI.GL.GetInteger(GLEnum.MaxElementsVertices);
@@ -235,6 +214,45 @@ namespace SiestaFrame
         }
 
         public void Wait() => WindowTask.Wait();
+
+        public unsafe void AllocFrameBuffer(int width = 0, int height = 0)
+        {
+            if (width > 0 && height > 0)
+            {
+                size = new Vector2D<int>(width, height);
+                Aspect = (float)size.X / size.Y;
+            }
+
+            if (frameBuffer > 0)
+            {
+                GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
+            }
+            if (colorAttachment > 0)
+            {
+                GraphicsAPI.GL.DeleteTexture(colorAttachment);
+            }
+            if (depthAttachment > 0)
+            {
+                GraphicsAPI.GL.DeleteTexture(depthAttachment);
+            }
+
+            frameBuffer = GraphicsAPI.GL.GenFramebuffer();
+            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
+
+            colorAttachment = GraphicsAPI.GL.GenTexture();
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, colorAttachment);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)Width, (uint)Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, colorAttachment, 0);
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
+            depthAttachment = GraphicsAPI.GL.GenTexture();
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, depthAttachment);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, (uint)Width, (uint)Height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
+            GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depthAttachment, 0);
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
+            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
 
         public void BindFrameBuffer(out uint color, out uint depth)
         {

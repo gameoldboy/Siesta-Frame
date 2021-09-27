@@ -29,15 +29,7 @@ namespace SiestaFrame.Rendering
         public float3 MatCapColor { get; set; }
         public Texture MatCapMap { get; set; }
 
-        public Shader ShaderShadowMap { get; }
         public Shader Shader { get; set; }
-
-        public int ShadowMapMatrixModelLocation { get; }
-        public int ShadowMapMatrixViewLocation { get; }
-        public int ShadowMapMatrixProjectionLocation { get; }
-        public int ShadowMapBaseMapLocation { get; }
-        public int ShadowMapTilingOffsetLocation { get; }
-        public int ShadowMapAlphaTest { get; }
 
         public int MatrixModelLocation { get; }
         public int MatrixViewLocation { get; }
@@ -63,6 +55,7 @@ namespace SiestaFrame.Rendering
         public int ShadowMapLocation { get; }
         public int MatrixMainLightViewLocation { get; }
         public int MatrixMainLightProjectionLocation { get; }
+        public int MainLightShadowRangeLocation { get; }
 
         public BlendMode Mode { get; set; }
 
@@ -85,15 +78,7 @@ namespace SiestaFrame.Rendering
             MatCapColor = new float3(0.5f, 0.5f, 0.5f);
             MatCapMap = Texture.White;
 
-            ShaderShadowMap = Shader.ShadowMap;
             Shader = Shader.Default;
-
-            ShadowMapMatrixModelLocation = ShaderShadowMap.GetUniformLocation("MatrixModel");
-            ShadowMapMatrixViewLocation = ShaderShadowMap.GetUniformLocation("MatrixView");
-            ShadowMapMatrixProjectionLocation = ShaderShadowMap.GetUniformLocation("MatrixProjection");
-            ShadowMapBaseMapLocation = ShaderShadowMap.GetUniformLocation("_BaseMap");
-            ShadowMapTilingOffsetLocation = ShaderShadowMap.GetUniformLocation("_TilingOffset");
-            ShadowMapAlphaTest = ShaderShadowMap.GetUniformLocation("_ShadowMapAlphaTest");
 
             MatrixModelLocation = Shader.GetUniformLocation("MatrixModel");
             MatrixViewLocation = Shader.GetUniformLocation("MatrixView");
@@ -119,6 +104,7 @@ namespace SiestaFrame.Rendering
             ShadowMapLocation = Shader.GetUniformLocation("_ShadowMap");
             MatrixMainLightViewLocation = Shader.GetUniformLocation("MatrixMainLightView");
             MatrixMainLightProjectionLocation = Shader.GetUniformLocation("MatrixMainLightProjection");
+            MainLightShadowRangeLocation = Shader.GetUniformLocation("_ShadowRange");
         }
     }
 }

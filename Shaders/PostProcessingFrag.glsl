@@ -19,7 +19,7 @@ vec3 ACESFilm(vec3 x)
 void main()
 {
     vec4 baseMapColor = texture(_BaseMap, uv);
-    
-    FragColor = vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w);
-    // FragColor = baseMapColor;
+
+    // FragColor = vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w);
+    FragColor = baseMapColor;
 }
