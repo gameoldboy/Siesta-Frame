@@ -56,6 +56,7 @@ namespace SiestaFrame.Rendering
         public int MatrixMainLightViewLocation { get; }
         public int MatrixMainLightProjectionLocation { get; }
         public int MainLightShadowRangeLocation { get; }
+        public int TemporalJitterLocation { get; }
 
         public BlendMode Mode { get; set; }
 
@@ -105,6 +106,7 @@ namespace SiestaFrame.Rendering
             MatrixMainLightViewLocation = Shader.GetUniformLocation("MatrixMainLightView");
             MatrixMainLightProjectionLocation = Shader.GetUniformLocation("MatrixMainLightProjection");
             MainLightShadowRangeLocation = Shader.GetUniformLocation("_ShadowRange");
+            TemporalJitterLocation = Shader.GetUniformLocation("_TemporalJitter");
         }
     }
 }

@@ -3,23 +3,25 @@
 in vec2 uv;
 
 uniform sampler2D _BaseMap;
+uniform sampler2D _DepthTexture;
+uniform sampler2D _MotionVectorMap;
 
 out vec4 FragColor;
 
 vec3 ACESFilm(vec3 x)
 {
-    float a = 2.51f;
-    float b = 0.03f;
-    float c = 2.43f;
-    float d = 0.59f;
-    float e = 0.14f;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0f, 1f);
+    float a = 2.51;
+    float b = 0.03;
+    float c = 2.43;
+    float d = 0.59;
+    float e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }
 
 void main()
 {
     vec4 baseMapColor = texture(_BaseMap, uv);
 
-    // FragColor = vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w);
-    FragColor = baseMapColor;
+    FragColor = vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w);
+    // FragColor = baseMapColor;
 }

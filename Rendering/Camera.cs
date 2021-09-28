@@ -13,7 +13,9 @@ namespace SiestaFrame.Rendering
         public float4x4 ViewMatrix => MathHelper.LookAt(Transform.Position, Transform.Position + Transform.Forward, Transform.Up);
         public float4x4 ProjectionMatrix =>
             MathHelper.PerspectiveFov(FOV * MathHelper.Deg2Rad, App.Instance.MainWindow.Width, App.Instance.MainWindow.Height, Near, Far);
-
+        public float4x4 PrevViewMatrix { get; set; }
+        public float4x4 PrevProjectionMatrix { get; set; }
+        public float4x4 JitterProjectionMatrix { get; set; }
         public float Yaw { get; set; }
         public float Pitch { get; set; }
 
@@ -27,6 +29,8 @@ namespace SiestaFrame.Rendering
             Near = 0.1f;
             Far = 100;
             Pitch = Yaw = 0;
+            PrevViewMatrix = ViewMatrix;
+            PrevProjectionMatrix = ProjectionMatrix;
         }
 
         public void ApplyYawPitch()

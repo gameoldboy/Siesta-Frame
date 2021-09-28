@@ -29,7 +29,7 @@ namespace SiestaFrame.Rendering
             SetupMesh();
         }
 
-        public VertexArrayObject<Vertex, uint> VAO { get; private set; }
+        public VertexArrayObject VAO { get; private set; }
         public BufferObject<Vertex> VBO { get; private set; }
         public BufferObject<uint> EBO { get; private set; }
 
@@ -38,9 +38,14 @@ namespace SiestaFrame.Rendering
             VBO?.Dispose();
             EBO?.Dispose();
             VAO?.Dispose();
-            EBO = new BufferObject<uint>(Indices, BufferTargetARB.ElementArrayBuffer);
-            VBO = new BufferObject<Vertex>(Vertices, BufferTargetARB.ArrayBuffer);
-            VAO = new VertexArrayObject<Vertex, uint>(VBO, EBO);
+            VAO = new VertexArrayObject();
+            VBO = new BufferObject<Vertex>(BufferTargetARB.ArrayBuffer);
+            EBO = new BufferObject<uint>(BufferTargetARB.ElementArrayBuffer);
+            VAO.Bind();
+            VBO.Bind();
+            VBO.BufferData(Vertices);
+            EBO.Bind();
+            EBO.BufferData(Indices);
 
             // 顶点坐标
             VAO.VertexAttributePointer<float>(0, 3, VertexAttribPointerType.Float, 28, 0);
@@ -60,13 +65,15 @@ namespace SiestaFrame.Rendering
             VAO.VertexAttributePointer<float>(7, 4, VertexAttribPointerType.Float, 28, 24);
 
             GraphicsAPI.GL.BindVertexArray(0);
+            GraphicsAPI.GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+            GraphicsAPI.GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
         }
 
         public void Dispose()
         {
+            VAO.Dispose();
             VBO.Dispose();
             EBO.Dispose();
-            VAO.Dispose();
         }
     }
 }

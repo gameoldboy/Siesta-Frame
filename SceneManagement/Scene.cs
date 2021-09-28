@@ -21,12 +21,12 @@ namespace SiestaFrame.SceneManagement
             MainLight = new Light();
         }
 
-        public void Render(ShadowMap shadowMap)
+        public void Render(ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
         {
             for (int i = 0; i < Entites.Count; i++)
             {
                 var entity = Entites[i];
-                entity.Draw(MainCamera, MainLight, shadowMap);
+                entity.Draw(MainCamera, MainLight, shadowMap, temporalAntiAliasing);
             }
         }
 

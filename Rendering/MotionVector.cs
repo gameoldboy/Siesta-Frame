@@ -5,15 +5,9 @@ using Unity.Mathematics;
 
 namespace SiestaFrame.Rendering
 {
-    public class ShadowMap : IDisposable
+    public class MotionVector : IDisposable
     {
-        uint frameBuffer;
-        uint shadowMap;
-
-        uint Width;
-        uint Height;
-
-        Shader shader;
+        uint motionVector;
 
         int matrixModelLocation;
         int matrixViewLocation;
@@ -21,27 +15,22 @@ namespace SiestaFrame.Rendering
         int baseMapLocation;
         int tilingOffsetLocation;
         int alphaTest;
+        int prevMatrixModelLocation;
+        int prevMatrixViewLocation;
+        int prevMatrixProjectionLocation;
 
-        unsafe public ShadowMap(int width, int height)
+        Shader shader;
+
+        public unsafe MotionVector()
         {
-            Width = (uint)width;
-            Height = (uint)height;
-            frameBuffer = GraphicsAPI.GL.GenFramebuffer();
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
-            shadowMap = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, shadowMap);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, Width, Height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
+            motionVector = GraphicsAPI.GL.GenTexture();
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, motionVector);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.RG32f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.RG, PixelType.Float, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)GLEnum.CompareRefToTexture);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareFunc, (int)GLEnum.Lequal);
-            GraphicsAPI.GL.DrawBuffer(GLEnum.None);
-            GraphicsAPI.GL.ReadBuffer(GLEnum.None);
-            GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, shadowMap, 0);
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
 
-            shader = SceneManager.AddCommonShader("ShadowMapVert.glsl", "ShadowMapFrag.glsl");
+            shader = SceneManager.AddCommonShader("MotionVectorVert.glsl", "MotionVectorFrag.glsl");
 
             matrixModelLocation = shader.GetUniformLocation("MatrixModel");
             matrixViewLocation = shader.GetUniformLocation("MatrixView");
@@ -49,29 +38,34 @@ namespace SiestaFrame.Rendering
             baseMapLocation = shader.GetUniformLocation("_BaseMap");
             tilingOffsetLocation = shader.GetUniformLocation("_TilingOffset");
             alphaTest = shader.GetUniformLocation("_AlphaTest");
-            GraphicsAPI.GL.UseProgram(0);
+            prevMatrixModelLocation = shader.GetUniformLocation("PrevMatrixModel");
+            prevMatrixViewLocation = shader.GetUniformLocation("PrevMatrixView");
+            prevMatrixProjectionLocation = shader.GetUniformLocation("PrevMatrixProjection");
         }
 
-        public void BindShadowMap(TextureUnit unit = TextureUnit.Texture0)
+        public void BindMotionVector(TextureUnit unit = TextureUnit.Texture0)
         {
             GraphicsAPI.GL.ActiveTexture(unit);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, shadowMap);
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, motionVector);
         }
 
-        public unsafe void RenderShadowMap(Scene scene)
+        public unsafe void RenderMotionVector(Scene scene)
         {
-            if (scene.MainLight.Type == Light.LightType.Directional)
-            {
-                scene.MainLight.ShadowFitToCamera(scene.MainCamera);
-            }
-            GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
+            App.Instance.MainWindow.BindFrameBuffer(motionVector);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
-            GraphicsAPI.GL.Clear(ClearBufferMask.DepthBufferBit);
+            GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
-            GraphicsAPI.GL.Viewport(0, 0, Width, Height);
+            GraphicsAPI.GL.Viewport(0, 0, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height);
+
+            var viewMatrix = scene.MainCamera.ViewMatrix;
+            var projectionMatrix = scene.MainCamera.JitterProjectionMatrix;
+
             for (int i = 0; i < scene.Entites.Count; i++)
             {
                 var entity = scene.Entites[i];
+
+                var modelMatrix = entity.Transform.ModelMatrix;
+
                 for (int j = 0; j < entity.Meshes.Length; j++)
                 {
                     var mesh = entity.Meshes[j];
@@ -80,9 +74,12 @@ namespace SiestaFrame.Rendering
                     mesh.VAO.Bind();
                     shader.Use();
 
-                    shader.SetMatrix(matrixModelLocation, entity.Transform.ModelMatrix);
-                    shader.SetMatrix(matrixViewLocation, scene.MainLight.ViewMatrix);
-                    shader.SetMatrix(matrixProjectionLocation, scene.MainLight.ProjectionMatrix);
+                    shader.SetMatrix(matrixModelLocation, modelMatrix);
+                    shader.SetMatrix(matrixViewLocation, viewMatrix);
+                    shader.SetMatrix(matrixProjectionLocation, projectionMatrix);
+                    shader.SetMatrix(prevMatrixModelLocation, entity.Transform.PrevModelMatrix);
+                    shader.SetMatrix(prevMatrixViewLocation, scene.MainCamera.PrevViewMatrix);
+                    shader.SetMatrix(prevMatrixProjectionLocation, scene.MainCamera.PrevProjectionMatrix);
                     material.BaseMap.Bind(TextureUnit.Texture0);
                     shader.SetInt(baseMapLocation, 0);
                     shader.SetVector(tilingOffsetLocation, material.TilingOffset);
@@ -100,14 +97,16 @@ namespace SiestaFrame.Rendering
                     GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
                     GraphicsAPI.GL.UseProgram(0);
                 }
+                entity.Transform.PrevModelMatrix = modelMatrix;
             }
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            scene.MainCamera.PrevViewMatrix = viewMatrix;
+            scene.MainCamera.PrevProjectionMatrix = projectionMatrix;
         }
 
         public void Dispose()
         {
-            GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
-            GraphicsAPI.GL.DeleteTexture(shadowMap);
+            GraphicsAPI.GL.DeleteTexture(motionVector);
         }
     }
 }

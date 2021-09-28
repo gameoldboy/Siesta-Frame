@@ -37,6 +37,7 @@ namespace SiestaFrame.Object
             Scale = new float3(1f, 1f, 1f);
             rotation = quaternion.identity;
             eulerAngles = float3.zero;
+            PrevModelMatrix = ModelMatrix;
         }
 
         public float3 Right

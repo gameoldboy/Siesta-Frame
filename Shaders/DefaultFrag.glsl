@@ -26,8 +26,39 @@ uniform vec3 _MainLightDir;
 uniform mat4 MatrixView;
 uniform sampler2DShadow _ShadowMap;
 uniform float _ShadowRange;
+uniform vec2 _TemporalJitter;
+
+vec2 _ShadowMapSize = textureSize(_ShadowMap, 0);
+vec2 _ShadowMapTexelSize = 1.0 / _ShadowMapSize;
 
 out vec4 FragColor;
+
+vec2 poissonDisk[16] = vec2[]( 
+   vec2( -0.94201624, -0.39906216 ), 
+   vec2( 0.94558609, -0.76890725 ), 
+   vec2( -0.094184101, -0.92938870 ), 
+   vec2( 0.34495938, 0.29387760 ), 
+   vec2( -0.91588581, 0.45771432 ), 
+   vec2( -0.81544232, -0.87912464 ), 
+   vec2( -0.38277543, 0.27676845 ), 
+   vec2( 0.97484398, 0.75648379 ), 
+   vec2( 0.44323325, -0.97511554 ), 
+   vec2( 0.53742981, -0.47373420 ), 
+   vec2( -0.26496911, -0.41893023 ), 
+   vec2( 0.79197514, 0.19090188 ), 
+   vec2( -0.24188840, 0.99706507 ), 
+   vec2( -0.81409955, 0.91437590 ), 
+   vec2( 0.19984126, 0.78641367 ), 
+   vec2( 0.14383161, -0.14100790 ) 
+);
+
+float random(vec3 seed, int i){
+	vec4 seed4 = vec4(seed,i);
+	float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
+	return fract(sin(dot_product) * 43758.5453);
+}
+
+#define PI 3.1415926
 
 void main()
 {
@@ -53,10 +84,9 @@ void main()
 
     vec3 shadowMapProjCoords = _PositionLS.xyz / _PositionLS.w;
     shadowMapProjCoords = shadowMapProjCoords * 0.5 + 0.5;
-    vec2 shadowMapSize = textureSize(_ShadowMap, 0);
-    vec2 shadowMapTexelSize = 1.0 / shadowMapSize;
+
     
-    float bias = max(0.002 * (1.0 - NdotL), 0.0002);
+    float bias = max(0.005 * (1.0 - NdotL), 0.0005);
     float mainLightDepth = shadowMapProjCoords.z - bias;
 
     float shadow = 0;
@@ -68,14 +98,19 @@ void main()
     }
     else
     {
-        for (int i = 0; i < 9.0; i++)
+        for (int i = 0; i < 16; i++)
         {
-            shadow += texture(_ShadowMap, 
-                vec3(shadowMapProjCoords.xy + 
-                shadowMapTexelSize * vec2(mod(i, 3.0) - 1, floor(i / 3.0) - 1),
-                mainLightDepth));
+            float angle = 2.0 * PI * random(_PositionWS * 1000, i);
+            float s = sin(angle);
+            float c = cos(angle);
+            vec2 rotatedOffset = vec2(
+                poissonDisk[i].x * c + poissonDisk[i].y * s,
+                poissonDisk[i].x * -s + poissonDisk[i].y * c);
+            shadow += texture(_ShadowMap,
+                vec3(shadowMapProjCoords.xy +
+                _ShadowMapTexelSize * rotatedOffset * 4.0, mainLightDepth));
         }
-        shadow /= 9.0;
+        shadow *= 0.0625;
         float shadowFadeOut = smoothstep(_ShadowRange - 1.0, _ShadowRange, length(viewDiffPosWS));
         shadow = mix(shadow, 1.0, shadowFadeOut);
     }

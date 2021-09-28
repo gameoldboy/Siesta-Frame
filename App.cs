@@ -58,6 +58,8 @@ namespace SiestaFrame
 
         ShadowMap shadowMap;
         PostProcessing postProcessing;
+        MotionVector motionVector;
+        TemporalAntiAliasing temporalAntiAliasing;
 
         float4 clearColor = new float4(0.85f, 0.88f, 0.9f, 1f);
 
@@ -81,6 +83,8 @@ namespace SiestaFrame
 
             shadowMap = new ShadowMap(4096, 4096);
             postProcessing = new PostProcessing();
+            motionVector = new MotionVector();
+            temporalAntiAliasing = new TemporalAntiAliasing();
 
             SceneManager = new SceneManager();
             SceneManager.LoadScene(new Scene("Demo Scene"));
@@ -207,14 +211,20 @@ namespace SiestaFrame
         {
             shadowMap.RenderShadowMap(SceneManager.Instance.CurrentScene);
 
-            MainWindow.BindFrameBuffer(out var colorTexture, out var depthTexture);
+            temporalAntiAliasing.PreTemporalAntiAliasing(SceneManager.Instance.CurrentScene.MainCamera);
+
+            MainWindow.BindFrameBuffer(MainWindow.ColorAttachment, MainWindow.DepthAttachment);
             GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, (uint)MainWindow.Width, (uint)MainWindow.Height);
-            SceneManager.Instance.CurrentScene.Render(shadowMap);
+            SceneManager.Instance.CurrentScene.Render(shadowMap, temporalAntiAliasing);
 
-            postProcessing.DoPostProcessing(colorTexture, depthTexture);
+            motionVector.RenderMotionVector(SceneManager.Instance.CurrentScene);
+
+            temporalAntiAliasing.DoTemporalAntiAliasing(postProcessing, MainWindow.ColorAttachment, MainWindow.DepthAttachment, motionVector);
+
+            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, motionVector);
         }
 
         Vector3 mainLightDir;

@@ -9,22 +9,24 @@ namespace SiestaFrame.Rendering
         uint _handle;
         BufferTargetARB _bufferType;
 
-        public unsafe BufferObject(Span<TDataType> data, BufferTargetARB bufferType)
+        public BufferObject(BufferTargetARB bufferType)
         {
             _bufferType = bufferType;
-
             _handle = GraphicsAPI.GL.GenBuffer();
-            Bind();
-            fixed (void* d = &data[0])
-            {
-                //Console.WriteLine($"sizeof:{sizeof(TDataType)}, length:{data.Length}");
-                GraphicsAPI.GL.BufferData(bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
-            }
         }
 
         public void Bind()
         {
             GraphicsAPI.GL.BindBuffer(_bufferType, _handle);
+        }
+
+        public unsafe void BufferData(Span<TDataType> data)
+        {
+            fixed (void* d = &data[0])
+            {
+                //Console.WriteLine($"sizeof:{sizeof(TDataType)}, length:{data.Length}");
+                GraphicsAPI.GL.BufferData(_bufferType, (nuint)(data.Length * sizeof(TDataType)), d, BufferUsageARB.StaticDraw);
+            }
         }
 
         public void Dispose()

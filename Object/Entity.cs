@@ -30,7 +30,7 @@ namespace SiestaFrame.Object
             Materials = new Material[0];
         }
 
-        public unsafe void Draw(Camera camera, Light mainLight, ShadowMap shadowMap)
+        public unsafe void Draw(Camera camera, Light mainLight, ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
         {
             for (int i = 0; i < meshes.Length; i++)
             {
@@ -41,7 +41,7 @@ namespace SiestaFrame.Object
                 material.Shader.Use();
                 material.Shader.SetMatrix(material.MatrixModelLocation, Transform.ModelMatrix);
                 material.Shader.SetMatrix(material.MatrixViewLocation, camera.ViewMatrix);
-                material.Shader.SetMatrix(material.MatrixProjectionLocation, camera.ProjectionMatrix);
+                material.Shader.SetMatrix(material.MatrixProjectionLocation, camera.JitterProjectionMatrix);
                 material.Shader.SetMatrix(material.MatrixMainLightViewLocation, mainLight.ViewMatrix);
                 material.Shader.SetMatrix(material.MatrixMainLightProjectionLocation, mainLight.ProjectionMatrix);
                 material.BaseMap.Bind(TextureUnit.Texture0);
@@ -72,6 +72,7 @@ namespace SiestaFrame.Object
                 material.Shader.SetVector(material.MainLightDirLocation, -mainLight.Transform.Forward);
                 material.Shader.SetInt(material.ShadowMapLocation, 7);
                 material.Shader.SetFloat(material.MainLightShadowRangeLocation, mainLight.ShadowRange);
+                material.Shader.SetVector(material.TemporalJitterLocation, temporalAntiAliasing.GetJitter());
                 if (math.sign(Transform.Scale.x) * math.sign(Transform.Scale.y) * math.sign(Transform.Scale.z) < 0)
                 {
                     GraphicsAPI.GL.FrontFace(FrontFaceDirection.CW);

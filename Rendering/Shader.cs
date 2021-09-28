@@ -9,12 +9,10 @@ namespace SiestaFrame.Rendering
     public class Shader : IDisposable
     {
         public static Shader Default { get; }
-        public static Shader ShadowMap { get; }
 
         static Shader()
         {
             Default = SceneManager.AddCommonShader("DefaultVert.glsl", "DefaultFrag.glsl");
-            ShadowMap = SceneManager.AddCommonShader("ShadowMapVert.glsl", "ShadowMapFrag.glsl");
         }
 
         uint _handle;
@@ -89,6 +87,11 @@ namespace SiestaFrame.Rendering
         public void SetFloat(int location, float value)
         {
             GraphicsAPI.GL.Uniform1(location, value);
+        }
+
+        public void SetVector(int location, float2 value)
+        {
+            GraphicsAPI.GL.Uniform2(location, value.x, value.y);
         }
 
         public void SetVector(int location, float3 value)
