@@ -4,10 +4,13 @@ using SiestaFrame.SceneManagement;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+using Silk.NET.Windowing;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
+using GlfwProvider = Silk.NET.GLFW.GlfwProvider;
+using GraphicsAPI = SiestaFrame.Rendering.GraphicsAPI;
 
 namespace SiestaFrame
 {
@@ -40,13 +43,14 @@ namespace SiestaFrame
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
 
-            MainWindow = new SiestaWindow("Siesta Frame *Demo v0.02*", new Vector2D<int>(1280, 720));
+            MainWindow = new SiestaWindow("Siesta Frame *Demo v0.02*", new int2(1280, 720));
 
             MainWindow.Load += onLoad;
             MainWindow.Update += onUpdate;
             MainWindow.Render += onRender;
             MainWindow.GUI += onGUI;
             MainWindow.Resize += onResize;
+            MainWindow.ResizeInternal += onResizeInternal;
             MainWindow.FocusChanged += onFocusChanged;
             MainWindow.Closing += onClose;
 
@@ -57,9 +61,9 @@ namespace SiestaFrame
         }
 
         ShadowMap shadowMap;
-        PostProcessing postProcessing;
         MotionVector motionVector;
         TemporalAntiAliasing temporalAntiAliasing;
+        PostProcessing postProcessing;
 
         float4 clearColor = new float4(0.85f, 0.88f, 0.9f, 1f);
 
@@ -156,12 +160,12 @@ namespace SiestaFrame
 
         void onUpdate(float deltaTime)
         {
-            const float s = 0.1f;
-            const float r = MathF.PI * 2f;
-            const float u = 1.5f;
-            var tx = math.sin((float)MainWindow.Window.Time * s % 1f * r) * u;
-            var ty = math.sin((float)MainWindow.Window.Time * s % 1f * r + r * 0.333f) * u;
-            var tz = math.sin((float)MainWindow.Window.Time * s % 1f * r + r * 0.667f) * u;
+            const float timeScale = 0.1f;
+            const float round = MathF.PI * 2f;
+            const float speed = 1.5f;
+            var tx = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round) * speed;
+            var ty = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.333f) * speed;
+            var tz = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.667f) * speed;
 
             SceneManager.CurrentScene.Entites[4].Transform.Rotation =
                 MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
@@ -230,6 +234,7 @@ namespace SiestaFrame
         Vector3 mainLightDir;
         float shadowRange;
         bool vsync = true;
+        bool fullScreen = false;
 
         void onGUI(float deltaTime)
         {
@@ -241,24 +246,54 @@ namespace SiestaFrame
                 framesPerSecond = FrameCount.ToString();
                 FrameCount = 0;
             }
-            ImGui.Begin("FPS");
-            ImGui.Text(framesPerSecond);
-            ImGui.Text("Main Light Direction");
-            ImGui.DragFloat3("", ref mainLightDir);
-            if (ImGui.Checkbox("VSync", ref vsync))
+
+            ImGui.Begin("Controller");
+            ImGui.Text($"FPS:{framesPerSecond}");
+            ImGui.SliderFloat3("Main Light Direction", ref mainLightDir, 0, 360f);
+            if (ImGui.Checkbox("垂直同步", ref vsync))
             {
                 MainWindow.Window.VSync = vsync;
             }
-            ImGui.SliderFloat("Shadow Range", ref shadowRange, 1f, 100f);
+            ImGui.SliderFloat("阴影范围", ref shadowRange, 1f, 100f);
+            if (ImGui.Button("720P"))
+            {
+                MainWindow.AllocRenderTexture(1280, 720);
+                MainWindow.SetFullScreen(fullScreen);
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("1080P"))
+            {
+                MainWindow.AllocRenderTexture(1920, 1080);
+                MainWindow.SetFullScreen(fullScreen);
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("1440P"))
+            {
+                MainWindow.AllocRenderTexture(2560, 1440);
+                MainWindow.SetFullScreen(fullScreen);
+            }
+            ImGui.SameLine();
+            if (ImGui.Button("2160P"))
+            {
+                MainWindow.AllocRenderTexture(3840, 2160);
+                MainWindow.SetFullScreen(fullScreen);
+            }
+            if (ImGui.Checkbox("全屏", ref fullScreen))
+            {
+                MainWindow.SetFullScreen(fullScreen);
+            }
+            ImGui.Text("移动：WASD，加速：LeftShift，操作：LeftAlt");
             ImGui.End();
         }
 
         void onClose()
         {
+            shadowMap.Dispose();
+            motionVector.Dispose();
+            temporalAntiAliasing.Dispose();
+            postProcessing.Dispose();
             SceneManager.Instance.CurrentScene.Dispose();
             SceneManager.UnloadCommonPool();
-            shadowMap.Dispose();
-            postProcessing.Dispose();
         }
 
         void KeyUp(IKeyboard arg1, Key arg2, int arg3)
@@ -324,8 +359,14 @@ namespace SiestaFrame
             mainCamera.FOV = Math.Clamp(mainCamera.FOV - scrollWheel.Y, 1.0f, 45f);
         }
 
-        private void onResize(Vector2D<int> size)
+        void onResize(int2 size)
         {
+        }
+
+        void onResizeInternal(int2 size)
+        {
+            motionVector.Alloc();
+            temporalAntiAliasing.Alloc();
         }
 
         bool windowFocus = true;

@@ -22,10 +22,33 @@ namespace SiestaFrame.Rendering
         int tilingOffsetLocation;
         int alphaTest;
 
-        unsafe public ShadowMap(int width, int height)
+        public ShadowMap(int width, int height)
+        {
+            Alloc(width, height);
+
+            shader = SceneManager.AddCommonShader("ShadowMapVert.glsl", "ShadowMapFrag.glsl");
+
+            matrixModelLocation = shader.GetUniformLocation("MatrixModel");
+            matrixViewLocation = shader.GetUniformLocation("MatrixView");
+            matrixProjectionLocation = shader.GetUniformLocation("MatrixProjection");
+            baseMapLocation = shader.GetUniformLocation("_BaseMap");
+            tilingOffsetLocation = shader.GetUniformLocation("_TilingOffset");
+            alphaTest = shader.GetUniformLocation("_AlphaTest");
+            GraphicsAPI.GL.UseProgram(0);
+        }
+
+        public unsafe void Alloc(int width, int height)
         {
             Width = (uint)width;
             Height = (uint)height;
+            if (frameBuffer > 0)
+            {
+                GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
+            }
+            if (shadowMap > 0)
+            {
+                GraphicsAPI.GL.DeleteTexture(shadowMap);
+            }
             frameBuffer = GraphicsAPI.GL.GenFramebuffer();
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             shadowMap = GraphicsAPI.GL.GenTexture();
@@ -40,16 +63,6 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, shadowMap, 0);
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
-
-            shader = SceneManager.AddCommonShader("ShadowMapVert.glsl", "ShadowMapFrag.glsl");
-
-            matrixModelLocation = shader.GetUniformLocation("MatrixModel");
-            matrixViewLocation = shader.GetUniformLocation("MatrixView");
-            matrixProjectionLocation = shader.GetUniformLocation("MatrixProjection");
-            baseMapLocation = shader.GetUniformLocation("_BaseMap");
-            tilingOffsetLocation = shader.GetUniformLocation("_TilingOffset");
-            alphaTest = shader.GetUniformLocation("_AlphaTest");
-            GraphicsAPI.GL.UseProgram(0);
         }
 
         public void BindShadowMap(TextureUnit unit = TextureUnit.Texture0)
@@ -63,6 +76,10 @@ namespace SiestaFrame.Rendering
             if (scene.MainLight.Type == Light.LightType.Directional)
             {
                 scene.MainLight.ShadowFitToCamera(scene.MainCamera);
+            }
+            else
+            {
+                throw new Exception("TO DO: Non-Directional Light");
             }
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);

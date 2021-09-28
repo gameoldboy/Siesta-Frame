@@ -21,14 +21,9 @@ namespace SiestaFrame.Rendering
 
         Shader shader;
 
-        public unsafe MotionVector()
+        public MotionVector()
         {
-            motionVector = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, motionVector);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.RG32f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.RG, PixelType.Float, null);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
+            Alloc();
 
             shader = SceneManager.AddCommonShader("MotionVectorVert.glsl", "MotionVectorFrag.glsl");
 
@@ -41,6 +36,20 @@ namespace SiestaFrame.Rendering
             prevMatrixModelLocation = shader.GetUniformLocation("PrevMatrixModel");
             prevMatrixViewLocation = shader.GetUniformLocation("PrevMatrixView");
             prevMatrixProjectionLocation = shader.GetUniformLocation("PrevMatrixProjection");
+        }
+
+        public unsafe void Alloc()
+        {
+            if (motionVector > 0)
+            {
+                GraphicsAPI.GL.DeleteTexture(motionVector);
+            }
+            motionVector = GraphicsAPI.GL.GenTexture();
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, motionVector);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.RG32f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.RG, PixelType.Float, null);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
         public void BindMotionVector(TextureUnit unit = TextureUnit.Texture0)

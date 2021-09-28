@@ -22,8 +22,31 @@ namespace SiestaFrame.Rendering
 
         bool swapHistory;
 
-        public unsafe TemporalAntiAliasing()
+        public TemporalAntiAliasing()
         {
+            Alloc();
+
+            shader = SceneManager.AddCommonShader("TemporalAntiAliasingVert.glsl", "TemporalAntiAliasingFrag.glsl");
+
+            baseMapLocation = shader.GetUniformLocation("_BaseMap");
+            depthTextureLocation = shader.GetUniformLocation("_DepthTexture");
+            historyMapLocation = shader.GetUniformLocation("_HistoryMap");
+            motionVectorMapLocation = shader.GetUniformLocation("_MotionVectorMap");
+            jitterLocation = shader.GetUniformLocation("_Jitter");
+
+            haltonSequence = new HaltonSequence(1024);
+        }
+
+        public unsafe void Alloc()
+        {
+            if (historyMapA > 0)
+            {
+                GraphicsAPI.GL.DeleteTexture(historyMapA);
+            }
+            if (historyMapB > 0)
+            {
+                GraphicsAPI.GL.DeleteTexture(historyMapB);
+            }
             historyMapA = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapA);
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
@@ -35,16 +58,6 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
-
-            shader = SceneManager.AddCommonShader("TemporalAntiAliasingVert.glsl", "TemporalAntiAliasingFrag.glsl");
-
-            baseMapLocation = shader.GetUniformLocation("_BaseMap");
-            depthTextureLocation = shader.GetUniformLocation("_DepthTexture");
-            historyMapLocation = shader.GetUniformLocation("_HistoryMap");
-            motionVectorMapLocation = shader.GetUniformLocation("_MotionVectorMap");
-            jitterLocation = shader.GetUniformLocation("_Jitter");
-
-            haltonSequence = new HaltonSequence(1024);
         }
 
         public void PreTemporalAntiAliasing(Camera mainCamera)
@@ -174,6 +187,7 @@ namespace SiestaFrame.Rendering
         public void Dispose()
         {
             GraphicsAPI.GL.DeleteTexture(historyMapA);
+            GraphicsAPI.GL.DeleteTexture(historyMapB);
         }
     }
 }

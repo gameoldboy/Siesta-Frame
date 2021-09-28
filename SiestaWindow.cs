@@ -7,6 +7,7 @@ using Silk.NET.Windowing;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Unity.Mathematics;
 using Glfw = Silk.NET.GLFW.Glfw;
 using GLFW = Silk.NET.GLFW;
 using GLFW_Window = Silk.NET.Windowing.Window;
@@ -24,10 +25,10 @@ namespace SiestaFrame
         public IInputContext InputContext;
         public ImGuiController Controller;
 
-        Vector2D<int> size;
+        int2 size;
         Vector2D<int> windowSize;
-        public int Width => size.X;
-        public int Height => size.Y;
+        public int Width => size.x;
+        public int Height => size.y;
         public float Aspect { get; private set; }
         public int MSAASamples { get; set; }
         bool focus = true;
@@ -41,7 +42,7 @@ namespace SiestaFrame
         public uint DepthAttachment { get; private set; }
         public uint TempColorAttachment { get; private set; }
 
-        public SiestaWindow(string title, Vector2D<int> size, int msaaSamples = 4)
+        public SiestaWindow(string title, int2 size, int msaaSamples = 4)
         {
             var options = WindowOptions.Default;
             //var api = options.API;
@@ -51,10 +52,10 @@ namespace SiestaFrame
             //api.Version = version;
             //options.API = api;
             this.size = size;
-            windowSize = size;
-            Aspect = (float)size.X / size.Y;
+            windowSize = new Vector2D<int>(size.x, size.y);
+            Aspect = (float)size.x / size.y;
             MSAASamples = msaaSamples;
-            options.Size = size;
+            options.Size = new Vector2D<int>(size.x, size.y);
             options.Title = title;
             options.WindowBorder = WindowBorder.Hidden;
             options.PreferredBitDepth = new Vector4D<int>(8, 8, 8, 0);
@@ -72,8 +73,9 @@ namespace SiestaFrame
         public event Action<float> Render;
         public event Action<float> GUI;
         public event Action<bool> FocusChanged;
-        public event Action<Vector2D<int>> Resize;
+        public event Action<int2> Resize;
         public event Action Closing;
+        public event Action<int2> ResizeInternal;
 
         readonly object taskLock = new object();
 
@@ -138,13 +140,14 @@ namespace SiestaFrame
             GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
             GraphicsAPI.GL.DeleteTexture(ColorAttachment);
             GraphicsAPI.GL.DeleteTexture(DepthAttachment);
+            GraphicsAPI.GL.DeleteTexture(TempColorAttachment);
 
             Closing?.Invoke();
         }
 
         unsafe void onLoad()
         {
-            Window.Center();
+            Window.Center(Window.Monitor);
             Window.WindowBorder = WindowBorder.Resizable;
 
             var icon = Utilities.LoadIcon(AppResource.logo);
@@ -160,7 +163,7 @@ namespace SiestaFrame
             var io = ImGui.GetIO();
             io.NativePtr->IniFilename = null;
 
-            AllocFrameBuffer();
+            AllocRenderTexture();
 
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Enable(EnableCap.CullFace);
@@ -184,7 +187,7 @@ namespace SiestaFrame
         {
             if (windowSize != Window.Size)
             {
-                Resize?.Invoke(Window.Size);
+                Resize?.Invoke(new int2(Window.Size.X, Window.Size.Y));
                 windowSize = Window.Size;
             }
             if (focus != lastFocus)
@@ -217,12 +220,15 @@ namespace SiestaFrame
 
         public void Wait() => WindowTask.Wait();
 
-        public unsafe void AllocFrameBuffer(int width = 0, int height = 0)
+        public unsafe void AllocRenderTexture(int width = 0, int height = 0)
         {
-            if (width > 0 && height > 0)
+            var size = new int2(width, height);
+            var resized = false;
+            if (width > 0 && height > 0 && !this.size.Equals(size))
             {
-                size = new Vector2D<int>(width, height);
-                Aspect = (float)size.X / size.Y;
+                this.size = size;
+                Aspect = (float)size.x / size.y;
+                resized = true;
             }
 
             if (frameBuffer > 0)
@@ -260,6 +266,25 @@ namespace SiestaFrame
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+
+            if (resized)
+            {
+                ResizeInternal?.Invoke(size);
+            }
+        }
+
+        public unsafe void SetFullScreen(bool fullScreen)
+        {
+            var monitor = glfw.GetMonitors(out var count)[Window.Monitor.Index];
+            if (fullScreen)
+            {
+                glfw.SetWindowMonitor((GLFW.WindowHandle*)Window.Handle, monitor, 0, 0, Width, Height, (int)Window.VideoMode.RefreshRate);
+            }
+            else
+            {
+                glfw.SetWindowMonitor((GLFW.WindowHandle*)Window.Handle, null, Window.Position.X, Window.Position.Y, Width, Height, 0);
+                Window.Center(Window.Monitor);
+            }
         }
 
         public void BindFrameBuffer()
@@ -267,7 +292,7 @@ namespace SiestaFrame
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
         }
 
-        public void BindFrameBuffer(uint colorAttachment, uint depthAttachment = 0u, FramebufferTarget framebufferTarget = FramebufferTarget.Framebuffer)
+        public void BindFrameBuffer(uint colorAttachment, uint depthAttachment = 0, FramebufferTarget framebufferTarget = FramebufferTarget.Framebuffer)
         {
             GraphicsAPI.GL.BindFramebuffer(framebufferTarget, frameBuffer);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, colorAttachment);
