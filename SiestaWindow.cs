@@ -273,16 +273,18 @@ namespace SiestaFrame
             }
         }
 
-        public unsafe void SetFullScreen(bool fullScreen)
+        public unsafe void SetFullScreen(bool fullScreen, bool vSync)
         {
             var monitor = glfw.GetMonitors(out var count)[Window.Monitor.Index];
             if (fullScreen)
             {
                 glfw.SetWindowMonitor((GLFW.WindowHandle*)Window.Handle, monitor, 0, 0, Width, Height, (int)Window.VideoMode.RefreshRate);
+                Window.VSync = vSync;
             }
             else
             {
                 glfw.SetWindowMonitor((GLFW.WindowHandle*)Window.Handle, null, Window.Position.X, Window.Position.Y, Width, Height, 0);
+                Window.VSync = vSync;
                 Window.Center(Window.Monitor);
             }
         }

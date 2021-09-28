@@ -233,7 +233,7 @@ namespace SiestaFrame
 
         Vector3 mainLightDir;
         float shadowRange;
-        bool vsync = true;
+        bool vSync = true;
         bool fullScreen = false;
 
         void onGUI(float deltaTime)
@@ -250,37 +250,37 @@ namespace SiestaFrame
             ImGui.Begin("Controller");
             ImGui.Text($"FPS:{framesPerSecond}");
             ImGui.SliderFloat3("Main Light Direction", ref mainLightDir, 0, 360f);
-            if (ImGui.Checkbox("垂直同步", ref vsync))
+            if (ImGui.Checkbox("垂直同步", ref vSync))
             {
-                MainWindow.Window.VSync = vsync;
+                MainWindow.Window.VSync = vSync;
             }
             ImGui.SliderFloat("阴影范围", ref shadowRange, 1f, 100f);
             if (ImGui.Button("720P"))
             {
                 MainWindow.AllocRenderTexture(1280, 720);
-                MainWindow.SetFullScreen(fullScreen);
+                MainWindow.SetFullScreen(fullScreen, vSync);
             }
             ImGui.SameLine();
             if (ImGui.Button("1080P"))
             {
                 MainWindow.AllocRenderTexture(1920, 1080);
-                MainWindow.SetFullScreen(fullScreen);
+                MainWindow.SetFullScreen(fullScreen, vSync);
             }
             ImGui.SameLine();
             if (ImGui.Button("1440P"))
             {
                 MainWindow.AllocRenderTexture(2560, 1440);
-                MainWindow.SetFullScreen(fullScreen);
+                MainWindow.SetFullScreen(fullScreen, vSync);
             }
             ImGui.SameLine();
             if (ImGui.Button("2160P"))
             {
                 MainWindow.AllocRenderTexture(3840, 2160);
-                MainWindow.SetFullScreen(fullScreen);
+                MainWindow.SetFullScreen(fullScreen, vSync);
             }
             if (ImGui.Checkbox("全屏", ref fullScreen))
             {
-                MainWindow.SetFullScreen(fullScreen);
+                MainWindow.SetFullScreen(fullScreen, vSync);
             }
             ImGui.Text("移动：WASD，加速：LeftShift，操作：LeftAlt");
             ImGui.End();
