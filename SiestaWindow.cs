@@ -29,6 +29,7 @@ namespace SiestaFrame
         Vector2D<int> windowSize;
         public int Width => size.x;
         public int Height => size.y;
+        public int2 ScreenMaxSize { get; private set; }
         public float Aspect { get; private set; }
         public int MSAASamples { get; set; }
         bool focus = true;
@@ -147,6 +148,16 @@ namespace SiestaFrame
 
         unsafe void onLoad()
         {
+            if (Window.VideoMode.Resolution.HasValue)
+            {
+                var maxSize = Window.VideoMode.Resolution.Value;
+                ScreenMaxSize = new int2(maxSize.X, maxSize.Y);
+            }
+            else
+            {
+                ScreenMaxSize = new int2(1920, 1080);
+            }
+
             Window.Center(Window.Monitor);
             Window.WindowBorder = WindowBorder.Resizable;
 
@@ -252,18 +263,27 @@ namespace SiestaFrame
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)Width, (uint)Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBorderColor, new float[] { 0f, 0f, 0f, 1f });
             GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2D, ColorAttachment, 0);
             DepthAttachment = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, DepthAttachment);
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, (uint)Width, (uint)Height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBorderColor, new float[] { 0f, 0f, 0f, 1f });
             GraphicsAPI.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, DepthAttachment, 0);
             TempColorAttachment = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, TempColorAttachment);
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)Width, (uint)Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBorderColor, new float[] { 0f, 0f, 0f, 1f });
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
 
@@ -278,7 +298,8 @@ namespace SiestaFrame
             var monitor = glfw.GetMonitors(out var count)[Window.Monitor.Index];
             if (fullScreen)
             {
-                glfw.SetWindowMonitor((GLFW.WindowHandle*)Window.Handle, monitor, 0, 0, Width, Height, (int)Window.VideoMode.RefreshRate);
+                glfw.SetWindowMonitor((GLFW.WindowHandle*)Window.Handle, monitor,
+                    0, 0, math.min(Width, ScreenMaxSize.x), math.min(Height, ScreenMaxSize.y), (int)Window.VideoMode.RefreshRate);
                 Window.VSync = vSync;
             }
             else

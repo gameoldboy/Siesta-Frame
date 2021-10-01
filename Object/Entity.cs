@@ -72,7 +72,7 @@ namespace SiestaFrame.Object
                 material.Shader.SetVector(material.MainLightDirLocation, -mainLight.Transform.Forward);
                 material.Shader.SetInt(material.ShadowMapLocation, 7);
                 material.Shader.SetFloat(material.MainLightShadowRangeLocation, mainLight.ShadowRange);
-                material.Shader.SetVector(material.TemporalJitterLocation, temporalAntiAliasing.GetJitter());
+                material.Shader.SetVector(material.TemporalJitterLocation, temporalAntiAliasing.GetJitter2());
                 if (math.sign(Transform.Scale.x) * math.sign(Transform.Scale.y) * math.sign(Transform.Scale.z) < 0)
                 {
                     GraphicsAPI.GL.FrontFace(FrontFaceDirection.CW);

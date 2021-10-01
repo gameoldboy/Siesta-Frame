@@ -60,11 +60,13 @@ namespace SiestaFrame.Rendering
 
         public unsafe void RenderMotionVector(Scene scene)
         {
+            var width = (uint)App.Instance.MainWindow.Width;
+            var height = (uint)App.Instance.MainWindow.Height;
             App.Instance.MainWindow.BindFrameBuffer(motionVector);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
-            GraphicsAPI.GL.Viewport(0, 0, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height);
+            GraphicsAPI.GL.Viewport(0, 0, width, height);
 
             var viewMatrix = scene.MainCamera.ViewMatrix;
             var projectionMatrix = scene.MainCamera.JitterProjectionMatrix;

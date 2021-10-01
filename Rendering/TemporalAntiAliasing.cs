@@ -47,16 +47,22 @@ namespace SiestaFrame.Rendering
             {
                 GraphicsAPI.GL.DeleteTexture(historyMapB);
             }
+            var width = (uint)App.Instance.MainWindow.Width;
+            var heigth = (uint)App.Instance.MainWindow.Height;
             historyMapA = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapA);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, width, heigth, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
             historyMapB = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapB);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, width, heigth, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
         }
 
@@ -178,10 +184,16 @@ namespace SiestaFrame.Rendering
             }
         }
 
-        public float2 GetJitter()
+        public float2 GetJitter2()
         {
             haltonSequence.Peek(out var jitterX, out var jitterY);
             return new float2(jitterX - 0.5f, jitterY - 0.5f);
+        }
+        public float4 GetJitter4()
+        {
+            haltonSequence.Peek(out var jitterX, out var jitterY);
+            haltonSequence.PeekPrev(out var PrevJitterX, out var PrevJitterY);
+            return new float4(jitterX - 0.5f, jitterY - 0.5f, PrevJitterX - 0.5f, PrevJitterY - 0.5f);
         }
 
         public void Dispose()

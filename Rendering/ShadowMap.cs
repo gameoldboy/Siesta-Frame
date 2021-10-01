@@ -39,8 +39,6 @@ namespace SiestaFrame.Rendering
 
         public unsafe void Alloc(int width, int height)
         {
-            Width = (uint)width;
-            Height = (uint)height;
             if (frameBuffer > 0)
             {
                 GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
@@ -49,6 +47,8 @@ namespace SiestaFrame.Rendering
             {
                 GraphicsAPI.GL.DeleteTexture(shadowMap);
             }
+            Width = (uint)width;
+            Height = (uint)height;
             frameBuffer = GraphicsAPI.GL.GenFramebuffer();
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             shadowMap = GraphicsAPI.GL.GenTexture();
@@ -56,6 +56,9 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.DepthComponent32f, Width, Height, 0, PixelFormat.DepthComponent, PixelType.Float, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToBorder);
+            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureBorderColor, new float[] { 0f, 0f, 0f, 1f });
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareMode, (int)GLEnum.CompareRefToTexture);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureCompareFunc, (int)GLEnum.Lequal);
             GraphicsAPI.GL.DrawBuffer(GLEnum.None);

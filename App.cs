@@ -1,4 +1,5 @@
 ﻿using ImGuiNET;
+using SiestaFrame.Object;
 using SiestaFrame.Rendering;
 using SiestaFrame.SceneManagement;
 using Silk.NET.Input;
@@ -99,6 +100,11 @@ namespace SiestaFrame
             var nanosuit = Utilities.LoadModel(@"nanosuit/nanosuit.obj");
             var head = Utilities.LoadModel(@"lpshead/head.OBJ");
             var floor = Utilities.LoadModel("floor.obj");
+            var box2 = new Entity()
+            {
+                Meshes = box.Meshes,
+                Materials = new Material[] { new Material() }
+            };
 
             foreach (var material in floor.Materials)
             {
@@ -115,22 +121,25 @@ namespace SiestaFrame
             }
             foreach (var material in suzanne.Materials)
             {
+                material.SpecularColor = new float4(4f, 4f, 4f, 1f);
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
+                //material.MatCapColor = float3.zero;
             }
             foreach (var material in nanosuit.Materials)
             {
-                material.BaseColor = new float4(4f, 4f, 4f, 1f);
+                material.BaseColor = new float4(8f, 8f, 8f, 1f);
                 //material.BaseMap = Rendering.Texture.White;
-                //material.MatCapColor = new float3(0.2f, 0.2f, 0.2f);
+                material.MatCapColor = new float3(1f, 1f, 1f);
                 material.SpecularColor = new float4(0.5f, 0.5f, 0.5f, 0.5f);
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
             }
             foreach (var material in head.Materials)
             {
-                material.SpecularColor = new float4(0.1f, 0.1f, 0.1f, 0.01f);
+                material.SpecularColor = new float4(0.2f, 0.1f, 0.1f, 0.01f);
                 material.NormalScale = 0.5f;
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
             }
+            box2.Materials[0].BaseColor = new float4(1f, 4f, 4f, 1f);
 
             var mainLight = SceneManager.Instance.CurrentScene.MainLight;
             var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
@@ -144,6 +153,8 @@ namespace SiestaFrame
             nanosuit.Transform.Position = new float3(-2f, 0f, 0f);
             suzanne.Transform.Position = new float3(2f, 1f, 0f);
             head.Transform.Position = new float3(4f, 1f, 0f);
+            box2.Transform.Position = new float3(0, 0.5f, 2f);
+            box2.Transform.Scale = new float3(0.2f, 0.2f, 0.2f);
 
             mainCamera.Transform.Position = new float3(0f, 1f, 3f);
             mainCamera.Transform.EulerAngles = new float3(0f, 180f, 0f);
@@ -154,6 +165,7 @@ namespace SiestaFrame
             scene.Entites.Add(nanosuit);
             scene.Entites.Add(head);
             scene.Entites.Add(box);
+            scene.Entites.Add(box2);
 
             //Graphics.GraphicsAPI.GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         }
@@ -226,15 +238,18 @@ namespace SiestaFrame
 
             motionVector.RenderMotionVector(SceneManager.Instance.CurrentScene);
 
-            temporalAntiAliasing.DoTemporalAntiAliasing(postProcessing, MainWindow.ColorAttachment, MainWindow.DepthAttachment, motionVector);
-
-            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, motionVector);
+            postProcessing.Bloom.Threshold = bloomThreshold;
+            postProcessing.Bloom.Intensity = bloomIntensity;
+            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, motionVector, temporalAntiAliasing);
         }
 
         Vector3 mainLightDir;
         float shadowRange;
         bool vSync = true;
         bool fullScreen = false;
+        float bloomThreshold = 0.8f;
+        float bloomIntensity = 1f;
+        bool tonemap = false;
 
         void onGUI(float deltaTime)
         {
@@ -277,6 +292,12 @@ namespace SiestaFrame
             {
                 MainWindow.AllocRenderTexture(3840, 2160);
                 MainWindow.SetFullScreen(fullScreen, vSync);
+            }
+            ImGui.SliderFloat("Bloom Threshold", ref bloomThreshold, 0, 2f);
+            ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0, 10f);
+            if (ImGui.Checkbox("Tone Mapping", ref tonemap))
+            {
+                postProcessing.Tonemapping = tonemap;
             }
             if (ImGui.Checkbox("全屏", ref fullScreen))
             {

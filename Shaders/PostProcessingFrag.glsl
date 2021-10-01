@@ -5,6 +5,7 @@ in vec2 uv;
 uniform sampler2D _BaseMap;
 uniform sampler2D _DepthTexture;
 uniform sampler2D _MotionVectorMap;
+uniform bool _Tonemap;
 
 out vec4 FragColor;
 
@@ -22,6 +23,10 @@ void main()
 {
     vec4 baseMapColor = texture(_BaseMap, uv);
 
-    FragColor = vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w);
-    // FragColor = baseMapColor;
+    if(_Tonemap)
+    {
+        baseMapColor = vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w);
+    }
+
+    FragColor = baseMapColor;
 }

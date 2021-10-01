@@ -34,31 +34,48 @@ vec2 _ShadowMapTexelSize = 1.0 / _ShadowMapSize;
 out vec4 FragColor;
 
 vec2 poissonDisk[16] = vec2[]( 
-   vec2( -0.94201624, -0.39906216 ), 
-   vec2( 0.94558609, -0.76890725 ), 
-   vec2( -0.094184101, -0.92938870 ), 
-   vec2( 0.34495938, 0.29387760 ), 
-   vec2( -0.91588581, 0.45771432 ), 
-   vec2( -0.81544232, -0.87912464 ), 
-   vec2( -0.38277543, 0.27676845 ), 
-   vec2( 0.97484398, 0.75648379 ), 
-   vec2( 0.44323325, -0.97511554 ), 
-   vec2( 0.53742981, -0.47373420 ), 
-   vec2( -0.26496911, -0.41893023 ), 
-   vec2( 0.79197514, 0.19090188 ), 
-   vec2( -0.24188840, 0.99706507 ), 
-   vec2( -0.81409955, 0.91437590 ), 
-   vec2( 0.19984126, 0.78641367 ), 
-   vec2( 0.14383161, -0.14100790 ) 
+    vec2( -0.94201624, -0.39906216 ), 
+    vec2( 0.94558609, -0.76890725 ), 
+    vec2( -0.094184101, -0.92938870 ), 
+    vec2( 0.34495938, 0.29387760 ), 
+    vec2( -0.91588581, 0.45771432 ), 
+    vec2( -0.81544232, -0.87912464 ), 
+    vec2( -0.38277543, 0.27676845 ), 
+    vec2( 0.97484398, 0.75648379 ), 
+    vec2( 0.44323325, -0.97511554 ), 
+    vec2( 0.53742981, -0.47373420 ), 
+    vec2( -0.26496911, -0.41893023 ), 
+    vec2( 0.79197514, 0.19090188 ), 
+    vec2( -0.24188840, 0.99706507 ), 
+    vec2( -0.81409955, 0.91437590 ), 
+    vec2( 0.19984126, 0.78641367 ), 
+    vec2( 0.14383161, -0.14100790 )
 );
 
-float random(vec3 seed, int i){
-	vec4 seed4 = vec4(seed,i);
-	float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
-	return fract(sin(dot_product) * 43758.5453);
+float hash(vec2 input){
+    return fract(1.0e4 * sin(17.0 * input.x + 0.1 * input.y) * (0.1 + abs(sin(13.0 * input.y + input.x))));
+}
+
+float hash3D(vec3 input){
+    return hash(vec2(hash(input.xy), input.z));
 }
 
 #define PI 3.1415926
+
+float OrenNayar(vec3 lightDir, vec3 viewDir, vec3 normal, float roughness) {
+  float LdotV = dot(lightDir, viewDir);
+  float NdotL = dot(lightDir, normal);
+  float NdotV = dot(normal, viewDir);
+
+  float s = LdotV - NdotL * NdotV;
+  float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
+
+  float sigma2 = roughness * roughness;
+  float A = 1.0 + sigma2 * (1.0 / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+  float B = 0.45 * sigma2 / (sigma2 + 0.09);
+
+  return max(0.0, NdotL) * (A + B * s / t) / PI;
+}
 
 void main()
 {
@@ -74,18 +91,19 @@ void main()
     vec3 matcap = texture(_MatCapMap, normalVS.xy).xyz;
 
     vec3 mainLightDir = normalize(_MainLightDir);
-    float NdotL = max(dot(normalWS, mainLightDir), 0.0);
+    float NdotL = dot(normalWS, mainLightDir);
 
     vec3 viewDiffPosWS = _ViewPosWS - _PositionWS;
     vec3 viewDir = normalize(viewDiffPosWS);
     vec3 reflectDir = reflect(-mainLightDir, normalWS);
+
+    float diffuse = OrenNayar(mainLightDir, viewDir, normalWS, 0.5);
 
     float specular = pow(max(dot(viewDir, reflectDir), 0.0), 1.0 + 100.0 * _SpecularColor.w);
 
     vec3 shadowMapProjCoords = _PositionLS.xyz / _PositionLS.w;
     shadowMapProjCoords = shadowMapProjCoords * 0.5 + 0.5;
 
-    
     float bias = max(0.005 * (1.0 - NdotL), 0.0005);
     float mainLightDepth = shadowMapProjCoords.z - bias;
 
@@ -100,7 +118,7 @@ void main()
     {
         for (int i = 0; i < 16; i++)
         {
-            float angle = 2.0 * PI * random(_PositionWS * 1000, i);
+            float angle = 2.0 * PI * hash3D(_PositionWS);
             float s = sin(angle);
             float c = cos(angle);
             vec2 rotatedOffset = vec2(
@@ -115,7 +133,7 @@ void main()
         shadow = mix(shadow, 1.0, shadowFadeOut);
     }
     
-    vec3 finalColor = (matcap * _MatCapColor + NdotL * shadow) *
+    vec3 finalColor = (matcap * _MatCapColor + diffuse * shadow) *
                     baseMapColor.xyz * _BaseColor.xyz +
                     specular * _SpecularColor.xyz * shadow;
 

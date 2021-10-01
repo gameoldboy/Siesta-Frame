@@ -17,12 +17,17 @@ namespace SiestaFrame.Rendering
         int depthTextureLocation;
         int motionVectorMapLocation;
         int blitBaseMapLocation;
+        int tonemappingLocation;
 
         VertexArrayObject FullScreenQuadVAO;
         BufferObject<float> FullScreenQuadVBO;
         BufferObject<uint> FullScreenQuadEBO;
         readonly float[] FullScreenQuadVertices = { -1f, -1f, 0f, 0f, 0f, 1, -1, 0f, 1f, 0f, -1f, 1f, 0f, 0f, 1f, 1f, 1f, 0f, 1f, 1f };
         readonly uint[] FullScreenQuadIndices = { 0, 1, 2, 1, 3, 2 };
+
+        public Bloom Bloom { get; }
+
+        public bool Tonemapping { get; set; }
 
         public PostProcessing()
         {
@@ -51,10 +56,18 @@ namespace SiestaFrame.Rendering
             depthTextureLocation = postProcessingShader.GetUniformLocation("_DepthTexture");
             motionVectorMapLocation = postProcessingShader.GetUniformLocation("_MotionVectorMap");
             blitBaseMapLocation = blitShader.GetUniformLocation("_BaseMap");
+            Tonemapping = false;
+            tonemappingLocation = postProcessingShader.GetUniformLocation("_Tonemap");
+
+            Bloom = new Bloom(5);
         }
 
-        public unsafe void DoPostProcessing(uint colorAttachment, uint depthAttachment, MotionVector motionVector)
+        public unsafe void DoPostProcessing(uint colorAttachment, uint depthAttachment, MotionVector motionVector, TemporalAntiAliasing temporalAntiAliasing)
         {
+            temporalAntiAliasing.DoTemporalAntiAliasing(this, colorAttachment, depthAttachment, motionVector);
+
+            Bloom.DoBloom(this, colorAttachment);
+
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit);
@@ -82,6 +95,7 @@ namespace SiestaFrame.Rendering
                 postProcessingShader.SetMatrix(matrixModelLocation, float4x4.Scale(-1f, 1f / App.Instance.MainWindow.Aspect, 1f));
                 postProcessingShader.SetMatrix(matrixProjectionLocation, MathHelper.ortho(-1f, 1f, -1f / aspect, 1f / aspect, 0.1f, 2f));
             }
+            postProcessingShader.SetBool(tonemappingLocation, Tonemapping);
             GraphicsAPI.GL.DrawElements(PrimitiveType.Triangles, (uint)FullScreenQuadIndices.Length, DrawElementsType.UnsignedInt, null);
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
@@ -117,6 +131,8 @@ namespace SiestaFrame.Rendering
             FullScreenQuadVAO.Dispose();
             FullScreenQuadVBO.Dispose();
             FullScreenQuadEBO.Dispose();
+            postProcessingShader.Dispose();
+            blitShader.Dispose();
         }
     }
 }
