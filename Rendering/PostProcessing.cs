@@ -59,7 +59,7 @@ namespace SiestaFrame.Rendering
             Tonemapping = false;
             tonemappingLocation = postProcessingShader.GetUniformLocation("_Tonemap");
 
-            Bloom = new Bloom(5);
+            Bloom = new Bloom();
         }
 
         public unsafe void DoPostProcessing(uint colorAttachment, uint depthAttachment, MotionVector motionVector, TemporalAntiAliasing temporalAntiAliasing)

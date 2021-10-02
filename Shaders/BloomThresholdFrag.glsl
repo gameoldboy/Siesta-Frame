@@ -7,15 +7,14 @@ uniform float _Threshold;
 
 out vec4 FragColor;
 
-float Luminance(vec3 linearRgb)
-{
-    return dot(linearRgb, vec3(0.2126729, 0.7151522, 0.0721750));
-}
-
 void main()
 {
     vec3 color = texture(_BaseMap, uv).xyz;
-    color = smoothstep(_Threshold, _Threshold + 0.5, Luminance(color)) * color;
+    float brightness = max(max(color.r, color.g), color.b);
+    float softness = clamp(brightness - _Threshold + 0.5, 0.0, 2.0 * 0.5);
+    softness = (softness * softness) / (4.0 * 0.5 + 1e-4);
+    float multiplier = max(brightness - _Threshold, softness) / max(brightness, 1e-4);
+    color *= multiplier;
 
     FragColor = vec4(color, 1.0);
 }

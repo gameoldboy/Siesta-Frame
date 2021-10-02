@@ -15,7 +15,7 @@ void main()
     color += texture(_BaseMap, uv + HalfTexelSize.xy).xyz;
     color += texture(_BaseMap, uv + vec2(HalfTexelSize.x, -HalfTexelSize.y)).xyz;
     color += texture(_BaseMap, uv - vec2(HalfTexelSize.x, -HalfTexelSize.y)).xyz;
-    color /= 8.0;
+    color *= 0.125;
 
     FragColor = vec4(color, 1.0);
 }

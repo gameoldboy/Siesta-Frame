@@ -388,6 +388,7 @@ namespace SiestaFrame
         {
             motionVector.Alloc();
             temporalAntiAliasing.Alloc();
+            postProcessing.Bloom.Alloc();
         }
 
         bool windowFocus = true;
