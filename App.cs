@@ -3,14 +3,11 @@ using SiestaFrame.Object;
 using SiestaFrame.Rendering;
 using SiestaFrame.SceneManagement;
 using Silk.NET.Input;
-using Silk.NET.Maths;
 using Silk.NET.OpenGL;
-using Silk.NET.Windowing;
 using System;
 using System.Numerics;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
-using GlfwProvider = Silk.NET.GLFW.GlfwProvider;
 using GraphicsAPI = SiestaFrame.Rendering.GraphicsAPI;
 
 namespace SiestaFrame
@@ -44,7 +41,7 @@ namespace SiestaFrame
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
 
-            MainWindow = new SiestaWindow("Siesta Frame *Demo v0.02*", new int2(1280, 720));
+            MainWindow = new SiestaWindow("Siesta Frame *Demo v0.02*", new uint2(1280, 720));
 
             MainWindow.Load += onLoad;
             MainWindow.Update += onUpdate;
@@ -121,7 +118,9 @@ namespace SiestaFrame
             }
             foreach (var material in suzanne.Materials)
             {
-                material.SpecularColor = new float4(4f, 4f, 4f, 1f);
+                material.Mode = Material.BlendMode.AlphaDither;
+                material.BaseColor = new float4(1f, 1f, 1f, 0.5f);
+                material.SpecularColor = new float4(10f, 10f, 10f, 1f);
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
                 //material.MatCapColor = float3.zero;
             }
@@ -164,8 +163,8 @@ namespace SiestaFrame
             scene.Entites.Add(suzanne);
             scene.Entites.Add(nanosuit);
             scene.Entites.Add(head);
-            scene.Entites.Add(box);
             scene.Entites.Add(box2);
+            scene.Entites.Add(box);
 
             //Graphics.GraphicsAPI.GL.PolygonMode(MaterialFace.FrontAndBack, PolygonMode.Line);
         }
@@ -179,9 +178,9 @@ namespace SiestaFrame
             var ty = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.333f) * speed;
             var tz = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.667f) * speed;
 
-            SceneManager.CurrentScene.Entites[4].Transform.Rotation =
+            SceneManager.CurrentScene.Entites[5].Transform.Rotation =
                 MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
-                SceneManager.CurrentScene.Entites[4].Transform.Rotation);
+                SceneManager.CurrentScene.Entites[5].Transform.Rotation);
 
             var moveSpeed = 2.5f * deltaTime;
 
@@ -233,7 +232,7 @@ namespace SiestaFrame
             GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
-            GraphicsAPI.GL.Viewport(0, 0, (uint)MainWindow.Width, (uint)MainWindow.Height);
+            GraphicsAPI.GL.Viewport(0, 0, MainWindow.Width, MainWindow.Height);
             SceneManager.Instance.CurrentScene.Render(shadowMap, temporalAntiAliasing);
 
             motionVector.RenderMotionVector(SceneManager.Instance.CurrentScene);
@@ -380,11 +379,11 @@ namespace SiestaFrame
             mainCamera.FOV = Math.Clamp(mainCamera.FOV - scrollWheel.Y, 1.0f, 45f);
         }
 
-        void onResize(int2 size)
+        void onResize(uint2 size)
         {
         }
 
-        void onResizeInternal(int2 size)
+        void onResizeInternal(uint2 size)
         {
             motionVector.Alloc();
             temporalAntiAliasing.Alloc();

@@ -8,10 +8,12 @@ uniform mat4 MatrixView;
 uniform mat4 MatrixProjection;
 
 out vec4 _TexCoords;
+out vec4 _PositionCS;
 
 void main()
 {
     _TexCoords = TexCoords;
+    _PositionCS = MatrixProjection * MatrixView * MatrixModel * vec4(PositionOS, 1.0);
 
-    gl_Position = MatrixProjection * MatrixView * MatrixModel * vec4(PositionOS, 1.0);
+    gl_Position = _PositionCS;
 }

@@ -47,8 +47,8 @@ namespace SiestaFrame.Rendering
             {
                 GraphicsAPI.GL.DeleteTexture(historyMapB);
             }
-            var width = (uint)App.Instance.MainWindow.Width;
-            var heigth = (uint)App.Instance.MainWindow.Height;
+            var width = App.Instance.MainWindow.Width;
+            var heigth = App.Instance.MainWindow.Height;
             historyMapA = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapA);
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, width, heigth, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
@@ -77,8 +77,8 @@ namespace SiestaFrame.Rendering
 
         public unsafe void DoTemporalAntiAliasing(PostProcessing postProcessing, uint colorAttachment, uint depthAttachment, MotionVector motionVector)
         {
-            uint width = (uint)App.Instance.MainWindow.Width;
-            uint height = (uint)App.Instance.MainWindow.Height;
+            var width = App.Instance.MainWindow.Width;
+            var height = App.Instance.MainWindow.Height;
             if (swapHistory)
             {
                 App.Instance.MainWindow.BindFrameBuffer(historyMapA);

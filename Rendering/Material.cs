@@ -8,8 +8,10 @@ namespace SiestaFrame.Rendering
         public enum BlendMode
         {
             None,
+            Add,
             Alpha,
-            Add
+            AlphaHashed,
+            AlphaDither
         }
 
         public float4 BaseColor { get; set; }
@@ -57,6 +59,9 @@ namespace SiestaFrame.Rendering
         public int MatrixMainLightProjectionLocation { get; }
         public int MainLightShadowRangeLocation { get; }
         public int TemporalJitterLocation { get; }
+        public int AlphaHashedLocation { get; }
+        public int AlphaDitherLocation { get; }
+        public int ScreenSizeLocation { get; }
 
         public BlendMode Mode { get; set; }
 
@@ -106,7 +111,10 @@ namespace SiestaFrame.Rendering
             MatrixMainLightViewLocation = Shader.GetUniformLocation("MatrixMainLightView");
             MatrixMainLightProjectionLocation = Shader.GetUniformLocation("MatrixMainLightProjection");
             MainLightShadowRangeLocation = Shader.GetUniformLocation("_ShadowRange");
-            TemporalJitterLocation = Shader.GetUniformLocation("_TemporalJitter");
+            TemporalJitterLocation = Shader.GetUniformLocation("_Jitter");
+            AlphaHashedLocation = Shader.GetUniformLocation("_AlphaHashed");
+            AlphaDitherLocation = Shader.GetUniformLocation("_AlphaDither");
+            ScreenSizeLocation = Shader.GetUniformLocation("_ScreenSize");
         }
     }
 }

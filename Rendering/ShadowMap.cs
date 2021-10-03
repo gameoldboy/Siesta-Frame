@@ -18,11 +18,13 @@ namespace SiestaFrame.Rendering
         int matrixModelLocation;
         int matrixViewLocation;
         int matrixProjectionLocation;
+        int baseColorLocation;
         int baseMapLocation;
         int tilingOffsetLocation;
         int alphaTest;
+        int screenSizeLocation;
 
-        public ShadowMap(int width, int height)
+        public ShadowMap(uint width, uint height)
         {
             Alloc(width, height);
 
@@ -31,13 +33,15 @@ namespace SiestaFrame.Rendering
             matrixModelLocation = shader.GetUniformLocation("MatrixModel");
             matrixViewLocation = shader.GetUniformLocation("MatrixView");
             matrixProjectionLocation = shader.GetUniformLocation("MatrixProjection");
+            baseColorLocation = shader.GetUniformLocation("_BaseColor");
             baseMapLocation = shader.GetUniformLocation("_BaseMap");
             tilingOffsetLocation = shader.GetUniformLocation("_TilingOffset");
             alphaTest = shader.GetUniformLocation("_AlphaTest");
+            screenSizeLocation = shader.GetUniformLocation("_ScreenSize");
             GraphicsAPI.GL.UseProgram(0);
         }
 
-        public unsafe void Alloc(int width, int height)
+        public unsafe void Alloc(uint width, uint height)
         {
             if (frameBuffer > 0)
             {
@@ -47,8 +51,8 @@ namespace SiestaFrame.Rendering
             {
                 GraphicsAPI.GL.DeleteTexture(shadowMap);
             }
-            Width = (uint)width;
-            Height = (uint)height;
+            Width = width;
+            Height = height;
             frameBuffer = GraphicsAPI.GL.GenFramebuffer();
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             shadowMap = GraphicsAPI.GL.GenTexture();
@@ -103,10 +107,12 @@ namespace SiestaFrame.Rendering
                     shader.SetMatrix(matrixModelLocation, entity.Transform.ModelMatrix);
                     shader.SetMatrix(matrixViewLocation, scene.MainLight.ViewMatrix);
                     shader.SetMatrix(matrixProjectionLocation, scene.MainLight.ProjectionMatrix);
+                    shader.SetVector(baseColorLocation, material.BaseColor);
                     material.BaseMap.Bind(TextureUnit.Texture0);
                     shader.SetInt(baseMapLocation, 0);
                     shader.SetVector(tilingOffsetLocation, material.TilingOffset);
                     shader.SetBool(alphaTest, material.Mode != Material.BlendMode.None ? true : false);
+                    shader.SetVector(screenSizeLocation, new float2(Width, Height));
                     if (math.sign(entity.Transform.Scale.x) * math.sign(entity.Transform.Scale.y) * math.sign(entity.Transform.Scale.z) < 0)
                     {
                         GraphicsAPI.GL.FrontFace(FrontFaceDirection.CW);
@@ -128,6 +134,7 @@ namespace SiestaFrame.Rendering
         {
             GraphicsAPI.GL.DeleteFramebuffer(frameBuffer);
             GraphicsAPI.GL.DeleteTexture(shadowMap);
+            shader.Dispose();
         }
     }
 }

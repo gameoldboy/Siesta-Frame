@@ -26,7 +26,7 @@ namespace SiestaFrame
             {
                 modelPath = Path.Combine("Assets", "Models", path);
             }
-            var scene = assimp.ImportFile(modelPath, (uint)(PostProcessSteps.CalculateTangentSpace | PostProcessSteps.Triangulate | PostProcessSteps.GenerateNormals));
+            var scene = assimp.ImportFile(modelPath, (uint)(PostProcessSteps.Triangulate | PostProcessSteps.GenerateNormals | PostProcessSteps.CalculateTangentSpace));
 
             var Meshes = new List<Mesh>();
             var Materials = new List<Material>();

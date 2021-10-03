@@ -73,6 +73,7 @@ namespace SiestaFrame.Object
                 material.Shader.SetInt(material.ShadowMapLocation, 7);
                 material.Shader.SetFloat(material.MainLightShadowRangeLocation, mainLight.ShadowRange);
                 material.Shader.SetVector(material.TemporalJitterLocation, temporalAntiAliasing.GetJitter2());
+                material.Shader.SetVector(material.ScreenSizeLocation, new float2(App.Instance.MainWindow.Width, App.Instance.MainWindow.Height));
                 if (math.sign(Transform.Scale.x) * math.sign(Transform.Scale.y) * math.sign(Transform.Scale.z) < 0)
                 {
                     GraphicsAPI.GL.FrontFace(FrontFaceDirection.CW);
@@ -81,19 +82,29 @@ namespace SiestaFrame.Object
                 {
                     GraphicsAPI.GL.FrontFace(FrontFaceDirection.Ccw);
                 }
+                var alphaHashed = false;
+                var alphaDither = false;
                 switch (material.Mode)
                 {
-                    case Material.BlendMode.Alpha:
-                        GraphicsAPI.GL.Enable(EnableCap.Blend);
-                        GraphicsAPI.GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                        GraphicsAPI.GL.DepthMask(false);
-                        break;
                     case Material.BlendMode.Add:
                         GraphicsAPI.GL.Enable(EnableCap.Blend);
                         GraphicsAPI.GL.BlendFunc(BlendingFactor.One, BlendingFactor.One);
                         GraphicsAPI.GL.DepthMask(false);
                         break;
+                    case Material.BlendMode.Alpha:
+                        GraphicsAPI.GL.Enable(EnableCap.Blend);
+                        GraphicsAPI.GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
+                        GraphicsAPI.GL.DepthMask(false);
+                        break;
+                    case Material.BlendMode.AlphaHashed:
+                        alphaHashed = true;
+                        break;
+                    case Material.BlendMode.AlphaDither:
+                        alphaDither = true;
+                        break;
                 }
+                material.Shader.SetBool(material.AlphaHashedLocation, alphaHashed);
+                material.Shader.SetBool(material.AlphaDitherLocation, alphaDither);
                 GraphicsAPI.GL.DrawElements(PrimitiveType.Triangles, (uint)mesh.Indices.Length, DrawElementsType.UnsignedInt, null);
                 GraphicsAPI.GL.BindVertexArray(0);
                 GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);

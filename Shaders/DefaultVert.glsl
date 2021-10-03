@@ -19,6 +19,7 @@ out vec3 _PositionWS;
 out vec4 _TexCoords;
 out mat3 _TBN;
 out vec4 _PositionLS;
+out vec4 _PositionCS;
 
 void main()
 {
@@ -29,6 +30,7 @@ void main()
     vec3 bitangentWS = normalize((MatrixModel * vec4(BitangentOS, 0.0)).xyz);
     _TBN = mat3(tangentWS, bitangentWS, normalWS);
     _PositionLS = MatrixMainLightProjection * MatrixMainLightView * vec4(_PositionWS, 1.0);
+    _PositionCS = MatrixProjection * MatrixView * vec4(_PositionWS, 1.0);
 
-    gl_Position = MatrixProjection * MatrixView * vec4(_PositionWS, 1.0);
+    gl_Position = _PositionCS;
 }

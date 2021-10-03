@@ -12,6 +12,7 @@ namespace SiestaFrame.Rendering
         int matrixModelLocation;
         int matrixViewLocation;
         int matrixProjectionLocation;
+        int baseColorLocation;
         int baseMapLocation;
         int tilingOffsetLocation;
         int alphaTest;
@@ -30,6 +31,7 @@ namespace SiestaFrame.Rendering
             matrixModelLocation = shader.GetUniformLocation("MatrixModel");
             matrixViewLocation = shader.GetUniformLocation("MatrixView");
             matrixProjectionLocation = shader.GetUniformLocation("MatrixProjection");
+            baseColorLocation = shader.GetUniformLocation("_BaseColor");
             baseMapLocation = shader.GetUniformLocation("_BaseMap");
             tilingOffsetLocation = shader.GetUniformLocation("_TilingOffset");
             alphaTest = shader.GetUniformLocation("_AlphaTest");
@@ -46,7 +48,7 @@ namespace SiestaFrame.Rendering
             }
             motionVector = GraphicsAPI.GL.GenTexture();
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, motionVector);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.RG32f, (uint)App.Instance.MainWindow.Width, (uint)App.Instance.MainWindow.Height, 0, PixelFormat.RG, PixelType.Float, null);
+            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.RG32f, App.Instance.MainWindow.Width, App.Instance.MainWindow.Height, 0, PixelFormat.RG, PixelType.Float, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
@@ -60,8 +62,8 @@ namespace SiestaFrame.Rendering
 
         public unsafe void RenderMotionVector(Scene scene)
         {
-            var width = (uint)App.Instance.MainWindow.Width;
-            var height = (uint)App.Instance.MainWindow.Height;
+            var width = App.Instance.MainWindow.Width;
+            var height = App.Instance.MainWindow.Height;
             App.Instance.MainWindow.BindFrameBuffer(motionVector);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
@@ -91,6 +93,7 @@ namespace SiestaFrame.Rendering
                     shader.SetMatrix(prevMatrixModelLocation, entity.Transform.PrevModelMatrix);
                     shader.SetMatrix(prevMatrixViewLocation, scene.MainCamera.PrevViewMatrix);
                     shader.SetMatrix(prevMatrixProjectionLocation, scene.MainCamera.PrevProjectionMatrix);
+                    shader.SetVector(baseColorLocation, material.BaseColor);
                     material.BaseMap.Bind(TextureUnit.Texture0);
                     shader.SetInt(baseMapLocation, 0);
                     shader.SetVector(tilingOffsetLocation, material.TilingOffset);

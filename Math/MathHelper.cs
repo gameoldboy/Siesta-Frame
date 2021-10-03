@@ -5,8 +5,6 @@ namespace SiestaFrame
 {
     public static class MathHelper
     {
-        public const float PiOver2 = MathF.PI / 2;
-
         public const float Deg2Rad = MathF.PI / 180.0f;
 
         public const float Rad2Deg = 180.0f / MathF.PI;
@@ -46,7 +44,8 @@ namespace SiestaFrame
             return toEuler(q, order);
         }
 
-        static float3 toEuler(quaternion q, math.RotationOrder order = math.RotationOrder.Default)
+        #region toEuler
+        static float3 toEuler(quaternion q, math.RotationOrder order)
         {
             const float epsilon = 1e-6f;
 
@@ -222,6 +221,7 @@ namespace SiestaFrame
                     return euler;
             }
         }
+        #endregion
 
         public static quaternion LookRotation(float x, float y, float z)
         {
@@ -245,6 +245,7 @@ namespace SiestaFrame
             return math.mul(rotation, math.mul(math.mul(math.inverse(rotation), eulerRot), rotation));
         }
 
+        #region FromToRotation
         public static quaternion FromToRotation(float3 from, float3 to)
         {
             float3 cross = math.cross(from, to);
@@ -275,6 +276,7 @@ namespace SiestaFrame
             float3 cross = math.cross(v, dir);
             q = cross * invLength;
         }
+        #endregion
 
         public static float4x4 TRS(float3 translation, quaternion rotation, float3 scale)
         {
@@ -307,7 +309,7 @@ namespace SiestaFrame
             return Result;
         }
 
-        public static float4x4 PerspectiveFov(float fov, int width, int height, float near, float far)
+        public static float4x4 PerspectiveFov(float fov, uint width, uint height, float near, float far)
         {
             float rad = fov;
             float h = math.cos(0.5f * rad) / math.sin(0.5f * rad);

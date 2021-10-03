@@ -75,14 +75,14 @@ namespace SiestaFrame.Rendering
                     GraphicsAPI.GL.DeleteTexture(upTextures[i]);
                 }
             }
-            var width = (uint)(App.Instance.MainWindow.Width);
-            var height = (uint)(App.Instance.MainWindow.Height);
+            var width = App.Instance.MainWindow.Width;
+            var height = App.Instance.MainWindow.Height;
             var maxIterations = 0;
             for (int i = 0; i < 1000; i++)
             {
                 var w = (int)(width / math.pow(2, i + 1));
                 var h = (int)(height / math.pow(2, i + 1));
-                if (w == 0 || h == 0)
+                if (w < 10 || h < 10)
                 {
                     break;
                 }
@@ -118,8 +118,8 @@ namespace SiestaFrame.Rendering
 
         public unsafe void DoBloom(PostProcessing postProcessing, uint colorAttachment)
         {
-            var width = (uint)(App.Instance.MainWindow.Width);
-            var height = (uint)(App.Instance.MainWindow.Height);
+            var width = App.Instance.MainWindow.Width;
+            var height = App.Instance.MainWindow.Height;
             //threshold pass
             App.Instance.MainWindow.BindFrameBuffer(downTextures[0]);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
