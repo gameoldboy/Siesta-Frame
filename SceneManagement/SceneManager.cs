@@ -1,5 +1,6 @@
 ﻿using SiestaFrame.Rendering;
 using System.Collections.Generic;
+using System.IO;
 
 namespace SiestaFrame.SceneManagement
 {
@@ -21,7 +22,16 @@ namespace SiestaFrame.SceneManagement
         {
             if (!commonTexturePool.ContainsKey(name))
             {
-                var texture = new Texture(name);
+                Texture texture;
+                switch (Path.GetExtension(name).ToLower())
+                {
+                    case ".gobt":
+                        texture = new TextureGOB(name);
+                        break;
+                    default:
+                        texture = new TextureImage(name);
+                        break;
+                }
                 commonTexturePool.Add(name, texture);
                 return texture;
             }
@@ -54,7 +64,7 @@ namespace SiestaFrame.SceneManagement
             var name = $"{name1}&{name2}";
             if (!commonShaderPool.ContainsKey(name))
             {
-                var shader = new Shader(name1, name2);
+                var shader = new ShaderSource(name1, name2);
                 commonShaderPool.Add(name, shader);
                 return shader;
             }
@@ -168,7 +178,16 @@ namespace SiestaFrame.SceneManagement
         {
             if (!texturePool.ContainsKey(name))
             {
-                var texture = new Texture(name);
+                Texture texture;
+                switch (Path.GetExtension(name).ToLower())
+                {
+                    case ".gobt":
+                        texture = new TextureGOB(name);
+                        break;
+                    default:
+                        texture = new TextureImage(name);
+                        break;
+                }
                 texturePool.Add(name, texture);
                 return texture;
             }
@@ -201,7 +220,7 @@ namespace SiestaFrame.SceneManagement
             var name = $"{name1}&{name2}";
             if (!shaderPool.ContainsKey(name))
             {
-                var shader = new Shader(name1, name2);
+                var shader = new ShaderSource(name1, name2);
                 shaderPool.Add(name, shader);
                 return shader;
             }

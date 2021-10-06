@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Numerics;
-using System.Runtime.InteropServices;
 using ImGuiNET;
 using Silk.NET.Input;
 using Silk.NET.Input.Extensions;
@@ -63,20 +62,7 @@ namespace Silk.NET.OpenGL.Extensions.ImGui
             Init(gl, view, input);
 
             var io = ImGuiNET.ImGui.GetIO();
-            if (string.IsNullOrWhiteSpace(imGuiFontConfig.FontPath))
-            {
-                io.Fonts.AddFontFromMemoryTTF(
-                    Marshal.UnsafeAddrOfPinnedArrayElement(imGuiFontConfig.FontBuffer, 0),
-                    imGuiFontConfig.FontBuffer.Length, imGuiFontConfig.FontSize,
-                    null, io.Fonts.GetGlyphRangesChineseFull());
-                io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
-            }
-            else
-            {
-                io.Fonts.AddFontFromFileTTF(imGuiFontConfig.FontPath, imGuiFontConfig.FontSize,
-                    null, io.Fonts.GetGlyphRangesChineseFull());
-                io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
-            }
+            io.Fonts.AddFontFromFileTTF(imGuiFontConfig.FontPath, imGuiFontConfig.FontSize, null, io.Fonts.GetGlyphRangesChineseFull());
             io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
 
             CreateDeviceResources();

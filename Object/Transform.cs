@@ -1,4 +1,5 @@
 ﻿using Unity.Mathematics;
+using BulletSharp.Math;
 
 namespace SiestaFrame.Object
 {
@@ -59,6 +60,7 @@ namespace SiestaFrame.Object
         }
 
         public float4x4 ModelMatrix => MathHelper.TRS(Position, rotation, Scale);
+        public float4x4 RigidModelMatrix => new float4x4(new RigidTransform(rotation, Position));
         public float4x4 PrevModelMatrix { get; set; }
     }
 }

@@ -18,6 +18,7 @@ uniform vec4 _SpecularColor;
 uniform sampler2D _SpecularMap;
 uniform vec3 _EmissiveColor;
 uniform sampler2D _EmissiveMap;
+uniform vec3 _SelectedColor;
 uniform float _OcclusionStrength;
 uniform sampler2D _OcclusionMap;
 uniform vec3 _MatCapColor;
@@ -82,7 +83,7 @@ float OrenNayar(vec3 lightDir, vec3 viewDir, vec3 normal, float roughness) {
 }
 
 float DitherThresholds[64] = float[](
-    0, 0.5, 0.125, 0.625, 0.03125, 0.53125, 0.15625, 0.65625,
+    0.0, 0.5, 0.125, 0.625, 0.03125, 0.53125, 0.15625, 0.65625,
     0.75, 0.25, 0.875, 0.375, 0.78125, 0.28125, 0.90625, 0.40625,
     0.1875, 0.6875, 0.0625, 0.5625, 0.21875, 0.71875, 0.09375, 0.59375,
     0.9375, 0.4375, 0.8125, 0.3125, 0.96875, 0.46875, 0.84375, 0.34375,
@@ -167,10 +168,14 @@ void main()
             discard;
         }
     }
+
+    vec3 emissiveMapColor = texture(_EmissiveMap, uv).xyz;
     
     vec3 finalColor = (matcap * _MatCapColor + diffuse * shadow) *
                     baseMapColor.xyz * _BaseColor.xyz +
-                    specular * _SpecularColor.xyz * shadow;
+                    specular * _SpecularColor.xyz * shadow +
+                    emissiveMapColor * _EmissiveColor +
+                    _SelectedColor;
 
     FragColor = vec4(finalColor, alpha);
 }

@@ -64,7 +64,7 @@ namespace SiestaFrame.Rendering
         {
             var width = App.Instance.MainWindow.Width;
             var height = App.Instance.MainWindow.Height;
-            App.Instance.MainWindow.BindFrameBuffer(motionVector);
+            App.Instance.MainWindow.BindFrameBuffer(motionVector, App.Instance.MainWindow.TempDepthAttachment);
             GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
@@ -110,6 +110,7 @@ namespace SiestaFrame.Rendering
                     GraphicsAPI.GL.BindVertexArray(0);
                     GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
                     GraphicsAPI.GL.UseProgram(0);
+                    GraphicsAPI.GL.FrontFace(FrontFaceDirection.Ccw);
                 }
                 entity.Transform.PrevModelMatrix = modelMatrix;
             }
@@ -121,6 +122,7 @@ namespace SiestaFrame.Rendering
         public void Dispose()
         {
             GraphicsAPI.GL.DeleteTexture(motionVector);
+            shader.Dispose();
         }
     }
 }

@@ -17,6 +17,7 @@ void main()
     {
         vec2 uv = _TexCoords.xy * _TilingOffset.xy + _TilingOffset.zw;
         float alpha = min(texture(_BaseMap, uv).w * 1.004, 1.0) * _BaseColor.w;
+
         if(alpha < 0.1)
         {
             discard;

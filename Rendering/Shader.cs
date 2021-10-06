@@ -1,7 +1,5 @@
 ﻿using SiestaFrame.SceneManagement;
-using Silk.NET.OpenGL;
 using System;
-using System.IO;
 using Unity.Mathematics;
 
 namespace SiestaFrame.Rendering
@@ -15,58 +13,11 @@ namespace SiestaFrame.Rendering
             Default = SceneManager.AddCommonShader("DefaultVert.glsl", "DefaultFrag.glsl");
         }
 
-        uint _handle;
-
-        public Shader(string vertPath, string fragPath)
-        {
-            uint vert = LoadShader(ShaderType.VertexShader, vertPath);
-            uint frag = LoadShader(ShaderType.FragmentShader, fragPath);
-            _handle = GraphicsAPI.GL.CreateProgram();
-            GraphicsAPI.GL.AttachShader(_handle, vert);
-            GraphicsAPI.GL.AttachShader(_handle, frag);
-            GraphicsAPI.GL.LinkProgram(_handle);
-            GraphicsAPI.GL.GetProgram(_handle, GLEnum.LinkStatus, out var status);
-            if (status == 0)
-            {
-                throw new Exception($"Program failed to link with error: {GraphicsAPI.GL.GetProgramInfoLog(_handle)}");
-            }
-            GraphicsAPI.GL.DetachShader(_handle, vert);
-            GraphicsAPI.GL.DetachShader(_handle, frag);
-            GraphicsAPI.GL.DeleteShader(vert);
-            GraphicsAPI.GL.DeleteShader(frag);
-        }
-
-        public unsafe Shader(string binPath)
-        {
-            byte[] buffer;
-            GLEnum binaryFormat;
-            using (var stream = new FileStream(Path.Combine("Shaders", binPath), FileMode.Open))
-            using (var reader = new BinaryReader(stream))
-            {
-                binaryFormat = (GLEnum)reader.ReadUInt32();
-                buffer = reader.ReadBytes((int)(stream.Length - 4));
-            }
-            Console.WriteLine($"length:{buffer.Length}, binaryFormat:{binaryFormat}");
-            _handle = GraphicsAPI.GL.CreateProgram();
-            fixed (void* b = buffer)
-            {
-                GraphicsAPI.GL.ProgramBinary(_handle, binaryFormat, b, (uint)buffer.Length);
-            }
-            GraphicsAPI.GL.GetProgram(_handle, GLEnum.LinkStatus, out var status);
-            if (status == 0)
-            {
-                throw new Exception($"Program failed to link with error: {GraphicsAPI.GL.GetProgramInfoLog(_handle)}");
-            }
-        }
+        protected uint _handle;
 
         public void Use()
         {
             GraphicsAPI.GL.UseProgram(_handle);
-        }
-
-        public void SetBool(int location, bool value)
-        {
-            GraphicsAPI.GL.Uniform1(location, value ? 1 : 0);
         }
 
         public int GetUniformLocation(string name)
@@ -77,6 +28,11 @@ namespace SiestaFrame.Rendering
             //    throw new Exception($"{name} uniform not found on shader.");
             //}
             return location;
+        }
+
+        public void SetBool(int location, bool value)
+        {
+            GraphicsAPI.GL.Uniform1(location, value ? 1 : 0);
         }
 
         public void SetInt(int location, int value)
@@ -112,42 +68,6 @@ namespace SiestaFrame.Rendering
         public void Dispose()
         {
             GraphicsAPI.GL.DeleteProgram(_handle);
-        }
-
-        uint LoadShader(ShaderType type, string path)
-        {
-            string src = File.ReadAllText(Path.Combine("Shaders", path));
-            uint handle = GraphicsAPI.GL.CreateShader(type);
-            GraphicsAPI.GL.ShaderSource(handle, src);
-            GraphicsAPI.GL.CompileShader(handle);
-            string infoLog = GraphicsAPI.GL.GetShaderInfoLog(handle);
-            if (!string.IsNullOrWhiteSpace(infoLog))
-            {
-                throw new Exception($"Error compiling shader of type {type}, failed with error {infoLog}");
-            }
-
-            return handle;
-        }
-
-        public unsafe void SaveShaderBinary(string path)
-        {
-            byte[] buffer = new byte[0x1000000];
-            uint length;
-            GLEnum binaryFormat;
-
-            fixed (void* b = buffer)
-            {
-                GraphicsAPI.GL.GetProgramBinary(_handle, 0x1000000, out length, out binaryFormat, b);
-            }
-
-            Console.WriteLine($"length:{length}, binaryFormat:{binaryFormat}");
-
-            using (var stream = new FileStream(Path.Combine("Shaders", path), FileMode.OpenOrCreate))
-            using (var writer = new BinaryWriter(stream))
-            {
-                writer.Write((uint)binaryFormat);
-                writer.Write(buffer, 0, (int)length);
-            }
         }
 
         public override bool Equals(object obj)

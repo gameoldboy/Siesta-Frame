@@ -38,14 +38,17 @@
 
 	<ItemGroup>
 		<PackageReference Include="ImGui.NET" Version="1.78.0" />
-		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-alpha.1.21474.1" />
-		<PackageReference Include="Silk.NET" Version="2.8.0" />
-		<PackageReference Include="Silk.NET.Assimp" Version="2.8.0" />
-		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.8.0" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="1.0.4-alpha.0.69" />
+		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-rc.1.21420.1" />
+		<PackageReference Include="Silk.NET" Version="2.9.0" />
+		<PackageReference Include="Silk.NET.Assimp" Version="2.9.0" />
+		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.9.0" />
+		<PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
 	</ItemGroup>
 
 	<ItemGroup>
+		<Reference Include="BulletSharp">
+			<HintPath>lib\BulletSharp\BulletSharp.dll</HintPath>
+		</Reference>
 		<Reference Include="Unity.Mathematics">
 			<HintPath>lib\Unity.Mathematics.dll</HintPath>
 		</Reference>
@@ -76,10 +79,11 @@
 		<Compile Remove="TextureTools\**" />
 		<EmbeddedResource Remove="TextureTools\**" />
 		<None Remove="TextureTools\**" />
-		<None Update="CascadiaCode.ttf">
+		<None Update="lib/FMOD/lib/x64/fmod.dll">
+			<Link>%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<None Update="lib/FMOD/lib/x64/fmod.dll">
+		<None Update="lib/BulletSharp/libbulletc.dll">
 			<Link>%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>

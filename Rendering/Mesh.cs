@@ -26,14 +26,14 @@ namespace SiestaFrame.Rendering
             Indices = indices;
             Vertices = vertices;
 
-            SetupMesh();
+            Setup();
         }
 
         public VertexArrayObject VAO { get; private set; }
         public BufferObject<Vertex> VBO { get; private set; }
         public BufferObject<uint> EBO { get; private set; }
 
-        public unsafe void SetupMesh()
+        public void Setup()
         {
             VBO?.Dispose();
             EBO?.Dispose();
@@ -67,6 +67,14 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
             GraphicsAPI.GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
+            GraphicsAPI.GL.DisableVertexAttribArray(0);
+            GraphicsAPI.GL.DisableVertexAttribArray(1);
+            GraphicsAPI.GL.DisableVertexAttribArray(2);
+            GraphicsAPI.GL.DisableVertexAttribArray(3);
+            GraphicsAPI.GL.DisableVertexAttribArray(4);
+            GraphicsAPI.GL.DisableVertexAttribArray(5);
+            GraphicsAPI.GL.DisableVertexAttribArray(6);
+            GraphicsAPI.GL.DisableVertexAttribArray(7);
         }
 
         public void Dispose()

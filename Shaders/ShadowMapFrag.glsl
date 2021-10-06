@@ -8,10 +8,9 @@ uniform sampler2D _BaseMap;
 uniform vec4 _TilingOffset;
 uniform bool _AlphaTest;
 uniform vec2 _ScreenSize;
-vec2 BaseMapSize = textureSize(_BaseMap, 0);
 
 float DitherThresholds[64] = float[](
-    0, 0.5, 0.125, 0.625, 0.03125, 0.53125, 0.15625, 0.65625,
+    0.0, 0.5, 0.125, 0.625, 0.03125, 0.53125, 0.15625, 0.65625,
     0.75, 0.25, 0.875, 0.375, 0.78125, 0.28125, 0.90625, 0.40625,
     0.1875, 0.6875, 0.0625, 0.5625, 0.21875, 0.71875, 0.09375, 0.59375,
     0.9375, 0.4375, 0.8125, 0.3125, 0.96875, 0.46875, 0.84375, 0.34375,

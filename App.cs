@@ -1,4 +1,5 @@
-﻿using ImGuiNET;
+﻿using BulletSharp;
+using ImGuiNET;
 using SiestaFrame.Object;
 using SiestaFrame.Rendering;
 using SiestaFrame.SceneManagement;
@@ -18,6 +19,7 @@ namespace SiestaFrame
 
         public SiestaWindow MainWindow { get; private set; }
         public Audio.Engine AudioEngine { get; private set; }
+        public Physics.Simulation Simulation { get; private set; }
         public SceneManager SceneManager { get; private set; }
 
         Vector2 LastMousePosition;
@@ -54,6 +56,8 @@ namespace SiestaFrame
 
             AudioEngine = new Audio.Engine();
             //AudioEngine.PlaySound(@"Assets/Sounds/Sugoi Kawai Desu Ne!.ogg");
+
+            Simulation = new Physics.Simulation();
 
             MainWindow.Wait();
         }
@@ -93,15 +97,20 @@ namespace SiestaFrame
             var scene = SceneManager.Instance.CurrentScene;
 
             var box = Utilities.LoadModel("box.obj");
+            box.Collisions = Simulation.AddCollision(box);
             var suzanne = Utilities.LoadModel("Suzanne.obj");
+            suzanne.Collisions = Simulation.AddCollision(suzanne);
             var nanosuit = Utilities.LoadModel(@"nanosuit/nanosuit.obj");
+            nanosuit.Collisions = Simulation.AddCollision(nanosuit);
             var head = Utilities.LoadModel(@"lpshead/head.OBJ");
+            head.Collisions = Simulation.AddCollision(head);
             var floor = Utilities.LoadModel("floor.obj");
             var box2 = new Entity()
             {
                 Meshes = box.Meshes,
                 Materials = new Material[] { new Material() }
             };
+            box2.Collisions = Simulation.AddCollision(box2);
 
             foreach (var material in floor.Materials)
             {
@@ -118,7 +127,7 @@ namespace SiestaFrame
             }
             foreach (var material in suzanne.Materials)
             {
-                material.Mode = Material.BlendMode.AlphaDither;
+                //material.Mode = Material.BlendMode.AlphaDither;
                 material.BaseColor = new float4(1f, 1f, 1f, 0.5f);
                 material.SpecularColor = new float4(10f, 10f, 10f, 1f);
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
@@ -138,7 +147,7 @@ namespace SiestaFrame
                 material.NormalScale = 0.5f;
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
             }
-            box2.Materials[0].BaseColor = new float4(1f, 4f, 4f, 1f);
+            box2.Materials[0].EmissiveColor = new float3(1f, 4f, 4f);
 
             var mainLight = SceneManager.Instance.CurrentScene.MainLight;
             var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
@@ -148,7 +157,7 @@ namespace SiestaFrame
             mainLight.Transform.EulerAngles = new float3(45f, 130f, 0f);
             mainLightDir = new Vector3(mainLight.Transform.EulerAngles.x, mainLight.Transform.EulerAngles.y, mainLight.Transform.EulerAngles.z);
 
-            box.Transform.Position = new float3(-0f, 1f, 0f);
+            box.Transform.Position = new float3(0f, 1f, 0f);
             nanosuit.Transform.Position = new float3(-2f, 0f, 0f);
             suzanne.Transform.Position = new float3(2f, 1f, 0f);
             head.Transform.Position = new float3(4f, 1f, 0f);
@@ -178,9 +187,10 @@ namespace SiestaFrame
             var ty = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.333f) * speed;
             var tz = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.667f) * speed;
 
+            SceneManager.CurrentScene.Entites[5].Transform.Scale = new float3(tx);
             SceneManager.CurrentScene.Entites[5].Transform.Rotation =
-                MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
-                SceneManager.CurrentScene.Entites[5].Transform.Rotation);
+                 MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
+                 SceneManager.CurrentScene.Entites[5].Transform.Rotation);
 
             var moveSpeed = 2.5f * deltaTime;
 
@@ -215,7 +225,9 @@ namespace SiestaFrame
                 }
             }
 
-            //Console.WriteLine(camera.Transform.Position);
+            SceneManager.Instance.CurrentScene.SyncCollision();
+
+            Simulation.Update(deltaTime);
         }
 
         int FrameCount = 0;
@@ -348,8 +360,55 @@ namespace SiestaFrame
         {
         }
 
+        Entity currentSelect;
+
         void onMouseDown(IMouse mouse, MouseButton mouseButton)
         {
+            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
+            var rayStart = MathHelper.ToVector3(mainCamera.Transform.Position);
+            var rayEnd = MathHelper.ToVector3(mainCamera.Transform.Position + mainCamera.Transform.Forward * 1000f);
+            float3 hitPointWorld;
+            float3 hitNormalWorld;
+            using (var cb = new ClosestRayResultCallback(ref rayStart, ref rayEnd))
+            {
+                Simulation.World.RayTestRef(ref rayStart, ref rayEnd, cb);
+                if (cb.HasHit)
+                {
+                    hitPointWorld = MathHelper.ToFloat3(cb.HitPointWorld);
+                    hitNormalWorld = MathHelper.ToFloat3(cb.HitNormalWorld);
+                    hitNormalWorld = math.normalize(hitNormalWorld);
+
+                    var entity = cb.CollisionObject.UserObject as Entity;
+                    if (entity != null)
+                    {
+                        if (currentSelect != null)
+                        {
+                            foreach (var material in currentSelect.Materials)
+                            {
+                                material.SelectedColor = float3.zero;
+                            }
+                        }
+                        currentSelect = entity;
+                        foreach (var material in entity.Materials)
+                        {
+                            material.SelectedColor = new float3(4f, 2f, 0f);
+                        }
+                    }
+                }
+                else
+                {
+                    hitPointWorld = MathHelper.ToFloat3(rayEnd);
+                    hitNormalWorld = float3.zero;
+                    if (currentSelect != null)
+                    {
+                        foreach (var material in currentSelect.Materials)
+                        {
+                            material.SelectedColor = float3.zero;
+                        }
+                    }
+                    currentSelect = null;
+                }
+            }
         }
 
         bool canMouseMove = true;

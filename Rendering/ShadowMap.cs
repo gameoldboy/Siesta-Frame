@@ -125,6 +125,7 @@ namespace SiestaFrame.Rendering
                     GraphicsAPI.GL.BindVertexArray(0);
                     GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
                     GraphicsAPI.GL.UseProgram(0);
+                    GraphicsAPI.GL.FrontFace(FrontFaceDirection.Ccw);
                 }
             }
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);

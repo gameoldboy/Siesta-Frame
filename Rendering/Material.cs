@@ -26,6 +26,7 @@ namespace SiestaFrame.Rendering
         public Texture SpecularMap { get; set; }
         public float3 EmissiveColor { get; set; }
         public Texture EmissiveMap { get; set; }
+        public float3 SelectedColor { get; set; }
         public float OcclusionStrength { get; set; }
         public Texture OcclusionMap { get; set; }
         public float3 MatCapColor { get; set; }
@@ -48,6 +49,7 @@ namespace SiestaFrame.Rendering
         public int SpecularMaplLocation { get; }
         public int EmissiveColorLocation { get; }
         public int EmissiveMapLocation { get; }
+        public int SelectedColorLocation { get; }
         public int OcclusionStrengthLocation { get; }
         public int OcclusionMapLocation { get; }
         public int MatCapColorlLocation { get; }
@@ -78,7 +80,8 @@ namespace SiestaFrame.Rendering
             SpecularColor = new float4(1f, 1f, 1f, 1f);
             SpecularMap = Texture.White;
             EmissiveColor = new float3(0f, 0f, 0f);
-            EmissiveMap = Texture.Black;
+            EmissiveMap = Texture.White;
+            SelectedColor = new float3(0f, 0f, 0f);
             OcclusionStrength = 1f;
             OcclusionMap = Texture.White;
             MatCapColor = new float3(0.5f, 0.5f, 0.5f);
@@ -101,6 +104,7 @@ namespace SiestaFrame.Rendering
             SpecularMaplLocation = Shader.GetUniformLocation("_SpecularMap");
             EmissiveColorLocation = Shader.GetUniformLocation("_EmissiveColor");
             EmissiveMapLocation = Shader.GetUniformLocation("_EmissiveMap");
+            SelectedColorLocation = Shader.GetUniformLocation("_SelectedColor");
             OcclusionStrengthLocation = Shader.GetUniformLocation("_OcclusionStrength");
             OcclusionMapLocation = Shader.GetUniformLocation("_OcclusionMap");
             MatCapColorlLocation = Shader.GetUniformLocation("_MatCapColor");
