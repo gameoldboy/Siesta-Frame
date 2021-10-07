@@ -1,13 +1,16 @@
 ﻿using System;
 using Unity.Mathematics;
+using Random = Unity.Mathematics.Random;
 
 namespace SiestaFrame
 {
     public static class MathHelper
     {
         public const float Deg2Rad = MathF.PI / 180.0f;
-
         public const float Rad2Deg = 180.0f / MathF.PI;
+
+        static Random random = new Random(233);
+        public static ref Random Random => ref random;
 
         public static float4x4 ToFloat4x4(System.Numerics.Matrix4x4 m)
         {

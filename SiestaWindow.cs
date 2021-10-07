@@ -77,7 +77,8 @@ namespace SiestaFrame
         public event Action Closing;
         public event Action<uint2> ResizeInternal;
 
-        readonly object taskLock = new object();
+        readonly object closeSyncLock = new object();
+        EventWaitHandle eventWaitHandle = new EventWaitHandle(false, EventResetMode.AutoReset);
 
         unsafe void windowTask(WindowOptions options)
         {
@@ -94,17 +95,22 @@ namespace SiestaFrame
             // 启动渲染线程，防止窗口事件阻塞渲染
             RenderingTask.Start();
             // 窗口事件轮询
-            Window.Run
-            (
-                () =>
+            while (!Window.IsClosing)
+            {
+                eventWaitHandle.WaitOne();
+                if (isSetFullScreen)
                 {
-                    Thread.Sleep(1);
+                    setFullScreen(fullScreen, vSync);
+                    isSetFullScreen = false;
+                }
+                if (!Window.IsClosing)
+                {
                     Window.DoEvents();
                 }
-            );
+            }
 
             Window.DoEvents();
-            lock (taskLock)
+            lock (closeSyncLock)
             {
                 Window.Reset();
             }
@@ -113,23 +119,22 @@ namespace SiestaFrame
         unsafe void renderingTask()
         {
             glfw.MakeContextCurrent((GLFW.WindowHandle*)Window.Handle);
-            Window.Run
-            (
-                () =>
+            // 渲染循环
+            while (!Window.IsClosing)
+            {
+                lock (closeSyncLock)
                 {
-                    lock (taskLock)
+                    if (!Window.IsClosing)
                     {
-                        if (!Window.IsClosing)
-                        {
-                            Window.DoUpdate();
-                        }
-                        if (!Window.IsClosing)
-                        {
-                            Window.DoRender();
-                        }
+                        Window.DoUpdate();
+                    }
+                    if (!Window.IsClosing)
+                    {
+                        Window.DoRender();
                     }
                 }
-            );
+                eventWaitHandle.Set();
+            }
             onClose();
         }
 
@@ -309,7 +314,18 @@ namespace SiestaFrame
             }
         }
 
-        public unsafe void SetFullScreen(bool fullScreen, bool vSync)
+        public bool isSetFullScreen = false;
+        public bool fullScreen = false;
+        public bool vSync = true;
+
+        public void SetFullScreen(bool fullScreen, bool vSync)
+        {
+            isSetFullScreen = true;
+            this.fullScreen = fullScreen;
+            this.vSync = vSync;
+        }
+
+        public unsafe void setFullScreen(bool fullScreen, bool vSync)
         {
             var monitor = glfw.GetMonitors(out var count)[Window.Monitor.Index];
             if (fullScreen)

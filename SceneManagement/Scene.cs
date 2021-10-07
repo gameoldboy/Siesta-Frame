@@ -39,6 +39,15 @@ namespace SiestaFrame.SceneManagement
             }
         }
 
+        public void SyncRigidBody()
+        {
+            for (int i = 0; i < Entites.Count; i++)
+            {
+                var entity = Entites[i];
+                entity.SyncRigidBody();
+            }
+        }
+
         public void Dispose()
         {
             foreach (var entity in Entites)

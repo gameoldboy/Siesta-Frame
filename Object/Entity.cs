@@ -28,14 +28,15 @@ namespace SiestaFrame.Object
 
         public Material[] Materials { get; set; }
 
-        public CollisionObject[] Collisions { get; set; }
+        public CollisionObject Collision { get; set; }
+
+        public RigidBody RigidBody { get; set; }
 
         public Entity()
         {
             Transform = new Transform();
             meshes = new Mesh[0];
             Materials = new Material[0];
-            Collisions = new CollisionObject[0];
         }
 
         public unsafe void Draw(Camera camera, Light mainLight, ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
@@ -127,12 +128,33 @@ namespace SiestaFrame.Object
 
         public void SyncCollision()
         {
-            for (int i = 0; i < Collisions.Length; i++)
+            if (Collision == null)
             {
-                var collision = Collisions[i];
-                collision.WorldTransform = MathHelper.ToMatrix(Transform.RigidModelMatrix);
-                collision.CollisionShape.LocalScaling = MathHelper.ToVector3(Transform.Scale);
+                return;
             }
+            Collision.WorldTransform = MathHelper.ToMatrix(Transform.RigidModelMatrix);
+            var scale = math.abs(Transform.Scale);
+            Collision.CollisionShape.LocalScaling = MathHelper.ToVector3(scale);
+        }
+
+        public void SyncRigidBody()
+        {
+            if (RigidBody == null)
+            {
+                return;
+            }
+            BulletSharp.Math.Matrix matrix;
+            if (RigidBody.MotionState != null)
+            {
+                RigidBody.MotionState.GetWorldTransform(out matrix);
+            }
+            else
+            {
+                matrix = RigidBody.WorldTransform;
+            }
+            var transform = new RigidTransform(MathHelper.ToFloat4x4(matrix));
+            Transform.Position = transform.pos - Transform.RigidOffsetPosition;
+            Transform.Rotation = transform.rot;
         }
 
         public void Dispose()
@@ -142,9 +164,13 @@ namespace SiestaFrame.Object
                 mesh.Dispose();
             }
             var shapes = new HashSet<CollisionShape>();
-            foreach (var obj in Collisions)
+            if (Collision != null)
             {
-                SimulationExtensions.CleanupBodiesAndShapes(Simulation.Instance.World, obj, shapes);
+                SimulationExtensions.CleanupBodiesAndShapes(Simulation.Instance.World, Collision, shapes);
+            }
+            if (RigidBody != null)
+            {
+                SimulationExtensions.CleanupBodiesAndShapes(Simulation.Instance.World, RigidBody, shapes);
             }
             foreach (var shape in shapes)
             {

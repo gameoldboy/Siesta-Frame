@@ -1,25 +1,24 @@
 ﻿using FMOD;
 using System;
-using Debug = System.Diagnostics.Debug;
 
 namespace SiestaFrame.Audio
 {
-    public class Engine
+    public class Engine : IDisposable
     {
         public static Engine Instance { get; private set; }
 
         FMOD.System system;
 
         ChannelGroup main;
-        public ChannelGroup Main { get => main; }
+        public ref ChannelGroup Main { get => ref main; }
         ChannelGroup se;
-        public ChannelGroup SE { get => se; }
+        public ref ChannelGroup SE { get => ref se; }
         ChannelGroup voice;
-        public ChannelGroup Voice { get => voice; }
+        public ref ChannelGroup Voice { get => ref voice; }
         ChannelGroup env;
-        public ChannelGroup Env { get => env; }
+        public ref ChannelGroup Env { get => ref env; }
         ChannelGroup bgm;
-        public ChannelGroup BGM { get => bgm; }
+        public ref ChannelGroup BGM { get => ref bgm; }
 
         public Engine()
         {
@@ -41,7 +40,17 @@ namespace SiestaFrame.Audio
         public void PlaySound(string path)
         {
             system.createSound(path, MODE._2D | MODE.CREATESTREAM, out var sound);
-            system.playSound(sound, se, false, out var channel);
+            system.playSound(sound, SE, false, out var channel);
+        }
+
+        public void Dispose()
+        {
+            Main.release();
+            SE.release();
+            Voice.release();
+            Env.release();
+            BGM.release();
+            system.release();
         }
     }
 }

@@ -32,12 +32,15 @@ namespace SiestaFrame.Object
             }
         }
 
+        public float3 RigidOffsetPosition { get; set; }
+
         public Transform()
         {
             Position = float3.zero;
             Scale = new float3(1f, 1f, 1f);
             rotation = quaternion.identity;
             eulerAngles = float3.zero;
+            RigidOffsetPosition = float3.zero;
             PrevModelMatrix = ModelMatrix;
         }
 
@@ -60,7 +63,7 @@ namespace SiestaFrame.Object
         }
 
         public float4x4 ModelMatrix => MathHelper.TRS(Position, rotation, Scale);
-        public float4x4 RigidModelMatrix => new float4x4(new RigidTransform(rotation, Position));
+        public float4x4 RigidModelMatrix => new float4x4(new RigidTransform(rotation, Position + RigidOffsetPosition));
         public float4x4 PrevModelMatrix { get; set; }
     }
 }
