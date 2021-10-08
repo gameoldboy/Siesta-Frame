@@ -46,12 +46,12 @@ namespace SiestaFrame
         public SiestaWindow(string title, uint2 size)
         {
             var options = WindowOptions.Default;
-            //var api = options.API;
-            //var version = api.Version;
-            //version.MajorVersion = 4;
-            //version.MinorVersion = 6;
-            //api.Version = version;
-            //options.API = api;
+            var api = options.API;
+            var version = api.Version;
+            version.MajorVersion = 4;
+            version.MinorVersion = 5;
+            api.Version = version;
+            options.API = api;
             this.size = size;
             windowSize = new Vector2D<int>((int)size.x, (int)size.y);
             Aspect = (float)size.x / size.y;
@@ -191,10 +191,13 @@ namespace SiestaFrame
             var maxFragmentUniformComponents = GraphicsAPI.GL.GetInteger(GLEnum.MaxFragmentUniformComponents);
             var maxUniformBlockSize = GraphicsAPI.GL.GetInteger(GLEnum.MaxUniformBlockSize);
             var maxUniformLocations = GraphicsAPI.GL.GetInteger(GLEnum.MaxUniformLocations);
+            var maxVertexAttribs = GraphicsAPI.GL.GetInteger(GLEnum.MaxVertexAttribs);
 
             Console.WriteLine($"OpenGl Version:{version}");
             Console.WriteLine($"MaxElementsVertices:{maxElementsVertices}, MaxElementsIndices:{maxElementsIndices}");
-            Console.WriteLine($"MaxVertexUniformComponents:{maxVertexUniformComponents}, MaxFragmentUniformComponents:{maxFragmentUniformComponents}, MaxUniformLocations:{maxUniformLocations}, MaxUniformBlockSize:{maxUniformBlockSize}");
+            Console.WriteLine($"MaxVertexUniformComponents:{maxVertexUniformComponents}, MaxFragmentUniformComponents:{maxFragmentUniformComponents}");
+            Console.WriteLine($"MaxUniformLocations:{maxUniformLocations}, MaxUniformBlockSize:{maxUniformBlockSize}");
+            Console.WriteLine($"MaxVertexAttribs:{maxVertexAttribs}");
 
             Load?.Invoke();
         }
@@ -223,6 +226,7 @@ namespace SiestaFrame
 
             GraphicsAPI.GL.Enable(EnableCap.FramebufferSrgb);
             Render?.Invoke(deltaTimef);
+            GraphicsAPI.GetGLError("Render error");
 
             GUI?.Invoke(deltaTimef);
             GraphicsAPI.GL.Disable(EnableCap.FramebufferSrgb);

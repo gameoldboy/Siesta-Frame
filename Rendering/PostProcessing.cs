@@ -15,6 +15,7 @@ namespace SiestaFrame.Rendering
         int matrixViewLocation;
         int matrixProjectionLocation;
         int baseMapLocation;
+        int shadowMapLocation;
         int depthTextureLocation;
         int motionVectorMapLocation;
         int blitBaseMapLocation;
@@ -41,11 +42,11 @@ namespace SiestaFrame.Rendering
         public PostProcessing()
         {
             fullScreenQuadVAO = new VertexArrayObject();
-            fullScreenQuadVBO = new BufferObject<float>(BufferTargetARB.ArrayBuffer);
-            fullScreenQuadEBO = new BufferObject<uint>(BufferTargetARB.ElementArrayBuffer);
             fullScreenQuadVAO.Bind();
+            fullScreenQuadVBO = new BufferObject<float>(BufferTargetARB.ArrayBuffer);
             fullScreenQuadVBO.Bind();
             fullScreenQuadVBO.BufferData(fullScreenQuadVertices);
+            fullScreenQuadEBO = new BufferObject<uint>(BufferTargetARB.ElementArrayBuffer);
             fullScreenQuadEBO.Bind();
             fullScreenQuadEBO.BufferData(fullScreenQuadIndices);
             fullScreenQuadVAO.VertexAttributePointer<float>(0, 3, VertexAttribPointerType.Float, 5, 0);
@@ -56,8 +57,8 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.DisableVertexAttribArray(0);
             GraphicsAPI.GL.DisableVertexAttribArray(1);
             sightVAO = new VertexArrayObject();
-            sightVBO = new BufferObject<float>(BufferTargetARB.ArrayBuffer);
             sightVAO.Bind();
+            sightVBO = new BufferObject<float>(BufferTargetARB.ArrayBuffer);
             sightVBO.Bind();
             sightVBO.BufferData(sightVertices);
             sightVAO.VertexAttributePointer<float>(0, 3, VertexAttribPointerType.Float, 3, 0);
@@ -73,6 +74,7 @@ namespace SiestaFrame.Rendering
             matrixViewLocation = postProcessingShader.GetUniformLocation("MatrixView");
             matrixProjectionLocation = postProcessingShader.GetUniformLocation("MatrixProjection");
             baseMapLocation = postProcessingShader.GetUniformLocation("_BaseMap");
+            shadowMapLocation = postProcessingShader.GetUniformLocation("_ShadowMap");
             depthTextureLocation = postProcessingShader.GetUniformLocation("_DepthTexture");
             motionVectorMapLocation = postProcessingShader.GetUniformLocation("_MotionVectorMap");
             blitBaseMapLocation = blitShader.GetUniformLocation("_BaseMap");
@@ -86,7 +88,7 @@ namespace SiestaFrame.Rendering
             Bloom = new Bloom();
         }
 
-        public unsafe void DoPostProcessing(uint colorAttachment, uint depthAttachment, MotionVector motionVector, TemporalAntiAliasing temporalAntiAliasing)
+        public unsafe void DoPostProcessing(uint colorAttachment, uint depthAttachment, ShadowMap shadowMap, MotionVector motionVector, TemporalAntiAliasing temporalAntiAliasing)
         {
             temporalAntiAliasing.DoTemporalAntiAliasing(this, colorAttachment, depthAttachment, motionVector);
 
@@ -107,6 +109,8 @@ namespace SiestaFrame.Rendering
             postProcessingShader.SetInt(depthTextureLocation, 1);
             motionVector.BindMotionVector(TextureUnit.Texture2);
             postProcessingShader.SetInt(motionVectorMapLocation, 2);
+            shadowMap.BindShadowMap(TextureUnit.Texture3);
+            postProcessingShader.SetInt(shadowMapLocation, 3);
             float4x4 matrixModel;
             var matrixView = MathHelper.LookAt(math.forward(), float3.zero, math.up());
             float4x4 matrixProjection;

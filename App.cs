@@ -117,7 +117,7 @@ namespace SiestaFrame
             }
             foreach (var material in suzanne.Materials)
             {
-                //material.Mode = Material.BlendMode.AlphaDither;
+                //material.Mode = Material.BlendMode.AlphaHashed;
                 material.BaseColor = new float4(1f, 1f, 1f, 0.5f);
                 material.SpecularColor = new float4(10f, 10f, 10f, 1f);
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
@@ -138,8 +138,8 @@ namespace SiestaFrame
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
             }
 
-            var mainLight = SceneManager.Instance.CurrentScene.MainLight;
-            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
+            var mainLight = scene.MainLight;
+            var mainCamera = scene.MainCamera;
 
             mainLight.ShadowRange = 10f;
             shadowRange = mainLight.ShadowRange;
@@ -166,18 +166,21 @@ namespace SiestaFrame
             scene.Entites.Add(nanosuit);
             head.Collision = PhysicsSimulation.AddCollision(head);
             scene.Entites.Add(head);
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 var box2 = new Entity()
                 {
                     Meshes = box.Meshes,
-                    Materials = new Material[] { new Material() }
+                    Materials = new Material[] { new Material() },
+                    DrawType = Mesh.DrawType.GPUInstancing
                 };
                 box2.Transform.Position = new float3((i % 10 - 5) * 0.2f, 4f + i / 100 * 0.2f, (i / 10 % 10 - 5) * 0.2f);
                 box2.Transform.Scale = new float3(0.2f);
                 var shape = new BoxShape(0.1f);
                 box2.RigidBody = PhysicsSimulation.AddRigidBody(shape, box2);
                 scene.Entites.Add(box2);
+                box2.Materials[0].Shader = SceneManager.AddShader("DefaultInstancedVert.glsl", "DefaultInstancedFrag.glsl");
+                box2.Materials[0].UpdateShaderLocation();
                 box2.Materials[0].BaseColor = new float4(1f, 0.2f, 0.5f, 1f);
             }
             var boxshape = new BoxShape(0.5f);
@@ -196,7 +199,8 @@ namespace SiestaFrame
             var ty = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.333f) * speed;
             var tz = math.sin((float)MainWindow.Window.Time * timeScale % 1f * round + round * 0.667f) * speed;
 
-            var box = SceneManager.CurrentScene.Entites[SceneManager.CurrentScene.Entites.Count - 1];
+            var scene = SceneManager.Instance.CurrentScene;
+            var box = scene.Entites[scene.Entites.Count - 1];
             box.Transform.Scale = new float3(tx * 0.5f);
             box.Transform.Rotation =
                  MathHelper.Rotate(new float3(tx * deltaTime, ty * deltaTime, tz * deltaTime),
@@ -204,8 +208,8 @@ namespace SiestaFrame
 
             var moveSpeed = 2.5f * deltaTime;
 
-            var mainLight = SceneManager.Instance.CurrentScene.MainLight;
-            var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
+            var mainLight = scene.MainLight;
+            var mainCamera = scene.MainCamera;
 
             mainCamera.ApplyYawPitch();
             mainLight.Transform.EulerAngles = new float3(mainLightDir.X, mainLightDir.Y, mainLightDir.Z);
@@ -236,9 +240,9 @@ namespace SiestaFrame
             }
 
             // 检测物理Sleep
-            for (int i = 0; i < SceneManager.Instance.CurrentScene.Entites.Count; i++)
+            for (int i = 0; i < scene.Entites.Count; i++)
             {
-                var entity = SceneManager.Instance.CurrentScene.Entites[i];
+                var entity = scene.Entites[i];
                 if (entity.RigidBody == null)
                 {
                     continue;
@@ -252,11 +256,13 @@ namespace SiestaFrame
                     transform.pos = new float3(0, 4f, 0);
                     entity.RigidBody.WorldTransform = MathHelper.ToMatrix(new float4x4(transform));
                     entity.RigidBody.Activate();
-                    entity.Materials[0].EmissiveColor = MathHelper.Random.NextFloat3() * (MathHelper.Random.NextBool() ? 4f : 0);
+                    bool changeColor = MathHelper.Random.NextBool();
+                    entity.Materials[0].BaseColor = new float4(1f, 0.2f, 0.5f, 1f) * (changeColor ? 0 : 1f);
+                    entity.Materials[0].EmissiveColor = MathHelper.Random.NextFloat3() * (changeColor ? 4f : 0);
                 }
             }
-            SceneManager.Instance.CurrentScene.SyncCollision();
-            SceneManager.Instance.CurrentScene.SyncRigidBody();
+            scene.SyncCollision();
+            scene.SyncRigidBody();
 
             PhysicsSimulation.Update(deltaTime);
         }
@@ -267,22 +273,28 @@ namespace SiestaFrame
 
         unsafe void onRender(float deltaTime)
         {
-            shadowMap.RenderShadowMap(SceneManager.Instance.CurrentScene);
+            var scene = SceneManager.Instance.CurrentScene;
 
-            temporalAntiAliasing.PreTemporalAntiAliasing(SceneManager.Instance.CurrentScene.MainCamera);
+            scene.CollectAndUpdateInstancedData();
+
+            shadowMap.RenderShadowMap(scene);
+
+            temporalAntiAliasing.PreTemporalAntiAliasing(scene.MainCamera);
 
             MainWindow.BindFrameBuffer(MainWindow.ColorAttachment, MainWindow.DepthAttachment);
             GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, MainWindow.Width, MainWindow.Height);
-            SceneManager.Instance.CurrentScene.Render(shadowMap, temporalAntiAliasing);
+            scene.Render(shadowMap, temporalAntiAliasing);
 
-            motionVector.RenderMotionVector(SceneManager.Instance.CurrentScene);
+            motionVector.RenderMotionVector(scene);
+
+            scene.ClearInstancedList();
 
             postProcessing.Bloom.Threshold = bloomThreshold;
             postProcessing.Bloom.Intensity = bloomIntensity;
-            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, motionVector, temporalAntiAliasing);
+            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, shadowMap, motionVector, temporalAntiAliasing);
         }
 
         Vector3 mainLightDir;

@@ -80,8 +80,7 @@ namespace SiestaFrame.Physics
                 indexedMesh.SetData(indices, vertices);
                 triangleIndexVertexArray.AddIndexedMesh(indexedMesh);
             }
-            var shape = new GImpactMeshShape(triangleIndexVertexArray);
-            shape.UpdateBound();
+            var shape = new BvhTriangleMeshShape(triangleIndexVertexArray, true);
             //shape.Margin = 0;
             return AddCollision(shape, entity); ;
         }

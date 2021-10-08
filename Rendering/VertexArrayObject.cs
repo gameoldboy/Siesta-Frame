@@ -15,8 +15,8 @@ namespace SiestaFrame.Rendering
         public unsafe void VertexAttributePointer<TVertexType>(uint index, int count, VertexAttribPointerType type, uint vertexSize, int offSet)
             where TVertexType : unmanaged
         {
-            GraphicsAPI.GL.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexType), (void*)(offSet * sizeof(TVertexType)));
             GraphicsAPI.GL.EnableVertexAttribArray(index);
+            GraphicsAPI.GL.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexType), (void*)(offSet * sizeof(TVertexType)));
         }
 
         public void Bind()

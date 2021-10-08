@@ -1,5 +1,4 @@
-﻿using System;
-using Unity.Mathematics;
+﻿using Unity.Mathematics;
 
 namespace SiestaFrame.Rendering
 {
@@ -34,36 +33,36 @@ namespace SiestaFrame.Rendering
 
         public Shader Shader { get; set; }
 
-        public int MatrixModelLocation { get; }
-        public int MatrixViewLocation { get; }
-        public int MatrixProjectionLocation { get; }
-        public int BaseColorLocation { get; }
-        public int BaseMapLocation { get; }
-        public int TilingOffsetLocation { get; }
-        public int NormalScaleLocation { get; }
-        public int NormalMapLocation { get; }
-        public int SmoothnessLocation { get; }
-        public int MetallicLocation { get; }
-        public int MetallicMapLocation { get; }
-        public int SpecularColorlLocation { get; }
-        public int SpecularMaplLocation { get; }
-        public int EmissiveColorLocation { get; }
-        public int EmissiveMapLocation { get; }
-        public int SelectedColorLocation { get; }
-        public int OcclusionStrengthLocation { get; }
-        public int OcclusionMapLocation { get; }
-        public int MatCapColorlLocation { get; }
-        public int MatCapMapLocation { get; }
-        public int ViewPosWSLocation { get; }
-        public int MainLightDirLocation { get; }
-        public int ShadowMapLocation { get; }
-        public int MatrixMainLightViewLocation { get; }
-        public int MatrixMainLightProjectionLocation { get; }
-        public int MainLightShadowRangeLocation { get; }
-        public int TemporalJitterLocation { get; }
-        public int AlphaHashedLocation { get; }
-        public int AlphaDitherLocation { get; }
-        public int ScreenSizeLocation { get; }
+        public int MatrixModelLocation { get; private set; }
+        public int MatrixViewLocation { get; private set; }
+        public int MatrixProjectionLocation { get; private set; }
+        public int BaseColorLocation { get; private set; }
+        public int BaseMapLocation { get; private set; }
+        public int TilingOffsetLocation { get; private set; }
+        public int NormalScaleLocation { get; private set; }
+        public int NormalMapLocation { get; private set; }
+        public int SmoothnessLocation { get; private set; }
+        public int MetallicLocation { get; private set; }
+        public int MetallicMapLocation { get; private set; }
+        public int SpecularColorlLocation { get; private set; }
+        public int SpecularMaplLocation { get; private set; }
+        public int EmissiveColorLocation { get; private set; }
+        public int EmissiveMapLocation { get; private set; }
+        public int SelectedColorLocation { get; private set; }
+        public int OcclusionStrengthLocation { get; private set; }
+        public int OcclusionMapLocation { get; private set; }
+        public int MatCapColorlLocation { get; private set; }
+        public int MatCapMapLocation { get; private set; }
+        public int ViewPosWSLocation { get; private set; }
+        public int MainLightDirLocation { get; private set; }
+        public int ShadowMapLocation { get; private set; }
+        public int MatrixMainLightViewLocation { get; private set; }
+        public int MatrixMainLightProjectionLocation { get; private set; }
+        public int MainLightShadowRangeLocation { get; private set; }
+        public int TemporalJitterLocation { get; private set; }
+        public int AlphaHashedLocation { get; private set; }
+        public int AlphaDitherLocation { get; private set; }
+        public int ScreenSizeLocation { get; private set; }
 
         public BlendMode Mode { get; set; }
 
@@ -89,6 +88,11 @@ namespace SiestaFrame.Rendering
 
             Shader = Shader.Default;
 
+            UpdateShaderLocation();
+        }
+
+        public void UpdateShaderLocation()
+        {
             MatrixModelLocation = Shader.GetUniformLocation("MatrixModel");
             MatrixViewLocation = Shader.GetUniformLocation("MatrixView");
             MatrixProjectionLocation = Shader.GetUniformLocation("MatrixProjection");

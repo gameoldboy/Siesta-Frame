@@ -6,6 +6,7 @@ uniform sampler2D _BaseMap;
 uniform sampler2D _DepthTexture;
 uniform sampler2D _MotionVectorMap;
 uniform bool _Tonemap;
+uniform sampler2D _ShadowMap;
 
 out vec4 FragColor;
 
