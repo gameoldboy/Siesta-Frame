@@ -13,17 +13,17 @@ out vec4 FragColor;
 
 float sRGB2Linear(float sRGB)
 {
-    if(sRGB <= 0.04045f)
+    if(sRGB <= 0.04045)
     {
-        return sRGB / 12.92f;
+        return sRGB / 12.92;
     }
-    else if(sRGB <= 1f)
+    else if(sRGB <= 1.0)
     {
-        return pow(((sRGB + 0.055f) / 1.055f), 2.4f);
+        return pow(((sRGB + 0.055) / 1.055), 2.4);
     }
     else
     {
-        return pow(sRGB, 2.2f);
+        return pow(sRGB, 2.2);
     }
 }
 
@@ -34,17 +34,17 @@ vec3 sRGB2Linear(vec3 sRGB)
 
 float Linear2sRGB(float linear)
 {
-    if(linear <= 0.0031308f)
+    if(linear <= 0.0031308)
     {
-        return linear * 12.92f;
+        return linear * 12.92;
     }
-    else if(linear <= 1f)
+    else if(linear <= 1.0)
     {
-        return 1.055f * pow(linear, 1f / 2.4f) - 0.055f;
+        return 1.055 * pow(linear, 1.0 / 2.4) - 0.055;
     }
     else
     {
-        return pow(linear, 1 / 2.2f);
+        return pow(linear, 1 / 2.2);
     }
 }
 
@@ -55,54 +55,64 @@ vec3 Linear2sRGB(vec3 linear)
 
 vec3 ACESFilm(vec3 x)
 {
-    float a = 2.51f;
-    float b = 0.03f;
-    float c = 2.43f;
-    float d = 0.59f;
-    float e = 0.14f;
-    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0f, 1f);
+    float a = 2.51;
+    float b = 0.03;
+    float c = 2.43;
+    float d = 0.59;
+    float e = 0.14;
+    return clamp((x * (a * x + b)) / (x * (c * x + d) + e), 0.0, 1.0);
 }
 
 void main()
 {
-    vec2 uv = _FlipY ? vec2(_TexCoords.x, 1f - _TexCoords.y) : _TexCoords;
+    vec2 uv = _FlipY ? vec2(_TexCoords.x, 1.0 - _TexCoords.y) : _TexCoords;
     vec4 baseMapColor = texture(_BaseMap, uv);
 
-    if(_Switch.x > 0f && _Switch.y == 0f && _Switch.z == 0f)
+    if(_Switch.x > 0.0 && _Switch.y == 0.0 && _Switch.z == 0.0)
     {
-        baseMapColor = vec4(baseMapColor.xxx,
-            _Switch.w > 0f ? baseMapColor.w : 1f);
+        baseMapColor.xyz = baseMapColor.xxx;
+        baseMapColor.w = _Switch.w > 0.0 ? baseMapColor.w : 1.0;
     }
-    else if(_Switch.x == 0f && _Switch.y > 0f && _Switch.z == 0f)
+    else if(_Switch.x == 0.0 && _Switch.y > 0.0 && _Switch.z == 0.0)
     {
-        baseMapColor = vec4(baseMapColor.yyy,
-            _Switch.w > 0f ? baseMapColor.w : 1f);
+        baseMapColor.xyz = baseMapColor.yyy;
+        baseMapColor.w = _Switch.w > 0.0 ? baseMapColor.w : 1.0;
     }
-    else if(_Switch.x == 0f && _Switch.y == 0f && _Switch.z > 0f)
+    else if(_Switch.x == 0.0 && _Switch.y == 0.0 && _Switch.z > 0.0)
     {
-        baseMapColor = vec4(baseMapColor.zzz,
-            _Switch.w > 0f ? baseMapColor.w : 1f);
+        baseMapColor.xyz = baseMapColor.zzz;
+        baseMapColor.w = _Switch.w > 0.0 ? baseMapColor.w : 1.0;
     }
-    else if(_Switch.x > 0f || _Switch.y > 0f || _Switch.z > 0f)
+    else if(_Switch.x > 0.0 || _Switch.y > 0.0 || _Switch.z > 0.0)
     {
-        baseMapColor = vec4(
-        _Switch.x * baseMapColor.x,
-        _Switch.y * baseMapColor.y,
-        _Switch.z * baseMapColor.z,
-        _Switch.w > 0f ? baseMapColor.w : 1f);
+        baseMapColor.x = _Switch.x * baseMapColor.x;
+        baseMapColor.y = _Switch.y * baseMapColor.y;
+        baseMapColor.z = _Switch.z * baseMapColor.z;
+        baseMapColor.w = _Switch.w > 0.0 ? baseMapColor.w : 1.0;
     }
-    else if(_Switch.w > 0f)
+    else if(_Switch.w > 0.0)
     {
-        baseMapColor = vec4(baseMapColor.www, 1f);
+        baseMapColor.xyz = baseMapColor.www;
+        baseMapColor.w = 1.0;
     }
     else
     {
-        baseMapColor = vec4(0f);
+        baseMapColor = vec4(0.0);
     }
 
-    baseMapColor = _Tonemap ? vec4(ACESFilm(baseMapColor.xyz), baseMapColor.w) : baseMapColor;
-    baseMapColor = _ToLinear ? vec4(sRGB2Linear(baseMapColor.xyz), baseMapColor.w) : baseMapColor;
-    baseMapColor = _sRGBOutput ? vec4(Linear2sRGB(baseMapColor.xyz), baseMapColor.w) : baseMapColor;
+    if(_Tonemap)
+    {
+        baseMapColor.xyz = ACESFilm(baseMapColor.xyz * 0.6);
+        baseMapColor.xyz = pow(baseMapColor.xyz, vec3(0.91));
+    }
+    if(_ToLinear)
+    {
+        baseMapColor.xyz = sRGB2Linear(baseMapColor.xyz);
+    }
+    if(_sRGBOutput)
+    {
+        baseMapColor.xyz = Linear2sRGB(baseMapColor.xyz);
+    }
 
     FragColor = baseMapColor;
 }

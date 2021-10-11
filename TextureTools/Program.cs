@@ -49,10 +49,6 @@ namespace TextureTools
         static string workPath;
         static string[] args;
 
-        //[DllImport("kernel32.dll")]
-        //[return: MarshalAs(UnmanagedType.Bool)]
-        //static extern bool AllocConsole();
-
         struct OPENFILENAME
         {
             public int lStructSize;
@@ -85,6 +81,9 @@ namespace TextureTools
 
         [DllImport("Comdlg32.dll", CharSet = CharSet.Auto, SetLastError = true)]
         static extern bool GetSaveFileNameA(ref OPENFILENAME lpofn);
+
+        [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
+        static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
 
         static unsafe void Main(string[] args)
         {
@@ -205,6 +204,8 @@ namespace TextureTools
             VAO.VertexAttributePointer<float>(0, 3, VertexAttribPointerType.Float, 5, 0);
             VAO.VertexAttributePointer<float>(1, 2, VertexAttribPointerType.Float, 5, 3);
             GL.BindVertexArray(0);
+            GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+            GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
 
             checkerboard = new Texture(Path.Combine(workPath, "checkerboard.gobt"));
             var vert = System.Text.Encoding.UTF8.GetString(Resource.vert);
@@ -279,10 +280,7 @@ namespace TextureTools
             {
                 GL.Enable(EnableCap.Blend);
                 GL.BlendFunc(BlendingFactor.SrcAlpha, BlendingFactor.OneMinusSrcAlpha);
-                texture.Bind();
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-                RenderTexture();
+                RenderTexture(true);
                 GL.Disable(EnableCap.Blend);
                 GL.BlendFunc(BlendingFactor.One, BlendingFactor.Zero);
             }
@@ -302,14 +300,26 @@ namespace TextureTools
                 (float)window.Size.Y / checkerboard.Height));
             GL.DrawElements(PrimitiveType.Triangles, (uint)indices.Length, DrawElementsType.UnsignedInt, null);
             GL.BindVertexArray(0);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+            GL.UseProgram(0);
         }
 
-        static unsafe void RenderTexture()
+        static unsafe void RenderTexture(bool linearFilter)
         {
             VAO.Bind();
             var shader = Shader.Default;
             shader.Use();
             texture.Bind(TextureUnit.Texture0);
+            if (linearFilter)
+            {
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
+            }
+            else
+            {
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
+                GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
+            }
             shader.SetInt("_BaseMap", 0);
             shader.SetVector("_Switch", new float4(
                 switchR ? 1f : 0f, switchG ? 1f : 0f,
@@ -320,6 +330,8 @@ namespace TextureTools
             shader.SetBool("_sRGBOutput", srgbOutput);
             GL.DrawElements(PrimitiveType.Triangles, (uint)indices.Length, DrawElementsType.UnsignedInt, null);
             GL.BindVertexArray(0);
+            GL.BindTexture(TextureTarget.Texture2D, 0);
+            GL.UseProgram(0);
         }
 
         static void GUI(float deltaTime)
@@ -338,7 +350,7 @@ namespace TextureTools
             ImGui.Text($"Width:{texture?.Width}, Height:{texture?.Height}");
             ImGui.Checkbox("Convert texture to linear space (图片转换到线性空间)", ref toLinear);
             ImGui.Checkbox("sRGB output (sRGB输出)", ref srgbOutput);
-            if (ImGui.Button("Load"))
+            if (ImGui.Button("Open"))
             {
                 var ofn = new OPENFILENAME();
                 ofn.lStructSize = Marshal.SizeOf(ofn);
@@ -359,52 +371,59 @@ namespace TextureTools
             }
             ImGui.SameLine();
             ImGui.Text(texturePath);
-            if (ImGui.Button("Save as") && texture != null)
+            if (ImGui.Button("Save as"))
             {
-                var lpofn = new OPENFILENAME();
-                var initPath = new char[256];
-                var str = Path.ChangeExtension(texturePath, ".gobt");
-                str.CopyTo(0, initPath, 0, str.Length);
-
-                lpofn.lStructSize = Marshal.SizeOf(lpofn);
-                lpofn.hwndOwner = window.Native.Win32.Value.Hwnd;
-                lpofn.lpstrFilter = "GOB BC7 Texture (*.gobt)\0*.gobt\0TGA Texture (*.tga)\0*.tga\0\0";
-                lpofn.lpstrFile = new string(initPath);
-                lpofn.nMaxFile = lpofn.lpstrFile.Length;
-                lpofn.lpstrFileTitle = new string(new char[64]);
-                lpofn.nMaxFileTitle = lpofn.lpstrFileTitle.Length;
-                lpofn.Flags = 2;
-                if (GetSaveFileNameA(ref lpofn))
+                if (texture == null)
                 {
-                    string filePath;
-                    if (Path.HasExtension(lpofn.lpstrFile))
+                    MessageBox(window.Native.Win32.Value.Hwnd, "请先打开一张图片！", null, 0x10);
+                }
+                else
+                {
+                    var lpofn = new OPENFILENAME();
+                    var initPath = new char[256];
+                    var str = Path.ChangeExtension(texturePath, ".gobt");
+                    str.CopyTo(0, initPath, 0, str.Length);
+
+                    lpofn.lStructSize = Marshal.SizeOf(lpofn);
+                    lpofn.hwndOwner = window.Native.Win32.Value.Hwnd;
+                    lpofn.lpstrFilter = "GOB Block Compression Texture (*.gobt)\0*.gobt\0TGA Texture (*.tga)\0*.tga\0\0";
+                    lpofn.lpstrFile = new string(initPath);
+                    lpofn.nMaxFile = lpofn.lpstrFile.Length;
+                    lpofn.lpstrFileTitle = new string(new char[64]);
+                    lpofn.nMaxFileTitle = lpofn.lpstrFileTitle.Length;
+                    lpofn.Flags = 2;
+                    if (GetSaveFileNameA(ref lpofn))
                     {
-                        filePath = lpofn.lpstrFile;
-                    }
-                    else
-                    {
+                        string filePath;
+                        if (Path.HasExtension(lpofn.lpstrFile))
+                        {
+                            filePath = lpofn.lpstrFile;
+                        }
+                        else
+                        {
+                            switch (lpofn.nFilterIndex)
+                            {
+                                case 1:
+                                    filePath = Path.ChangeExtension(lpofn.lpstrFile, ".gobt");
+                                    break;
+                                case 2:
+                                    filePath = Path.ChangeExtension(lpofn.lpstrFile, ".tga");
+                                    break;
+                                default:
+                                    filePath = lpofn.lpstrFile;
+                                    break;
+                            }
+                        }
                         switch (lpofn.nFilterIndex)
                         {
                             case 1:
-                                filePath = Path.ChangeExtension(lpofn.lpstrFile, ".gobt");
+                                SaveCompressed(filePath);
                                 break;
                             case 2:
-                                filePath = Path.ChangeExtension(lpofn.lpstrFile, ".tga");
-                                break;
                             default:
-                                filePath = lpofn.lpstrFile;
+                                Save(filePath);
                                 break;
                         }
-                    }
-                    switch (lpofn.nFilterIndex)
-                    {
-                        case 1:
-                            SaveCompressed(filePath);
-                            break;
-                        case 2:
-                        default:
-                            Save(filePath);
-                            break;
                     }
                 }
             }
@@ -413,7 +432,7 @@ namespace TextureTools
             ImGui.Checkbox("G", ref switchG); ImGui.SameLine();
             ImGui.Checkbox("B", ref switchB); ImGui.SameLine();
             ImGui.Checkbox("Alpha", ref switchAlpha); ImGui.SameLine();
-            ImGui.Checkbox("HDR Tone Map", ref Tonemap);
+            ImGui.Checkbox("HDR Tone Mapping", ref Tonemap);
             if (ImGui.BeginCombo("GOBT format (GOBT格式)", outputFormats[(int)outputFormat]))
             {
                 for (int i = 0; i < outputFormats.Length; i++)
@@ -636,10 +655,16 @@ namespace TextureTools
         static unsafe void Save(string filePath)
         {
             Console.WriteLine("Saving...");
-            if (texture.Format == InternalFormat.Rgb32f)
+            if (texture.Format == InternalFormat.Rgb32f ||
+                texture.Format == InternalFormat.CompressedRgbBptcUnsignedFloat ||
+                texture.Format == InternalFormat.CompressedRgbBptcSignedFloat)
             {
-                Console.WriteLine("TGA cannot save HDR colors");
-                return;
+                var result = MessageBox(window.Native.Win32.Value.Hwnd, "尝试用TGA格式保存浮点像素\n会丢失高动态范围部分的像素亮度\n是否继续？", null, 4 | 0x20);
+                if (result != 6)
+                {
+                    Console.WriteLine("Aborted");
+                    return;
+                }
             }
 
             var width = (uint)texture.Width;
@@ -659,7 +684,7 @@ namespace TextureTools
             GL.Clear(ClearBufferMask.ColorBufferBit);
             var hdr = Tonemap;
             Tonemap = false;
-            RenderTexture();
+            RenderTexture(false);
             Tonemap = hdr;
             GL.Viewport(0, 0, (uint)window.Size.X, (uint)window.Size.Y);
 
@@ -744,7 +769,7 @@ namespace TextureTools
             GL.Clear(ClearBufferMask.ColorBufferBit);
             var hdr = Tonemap;
             Tonemap = false;
-            RenderTexture();
+            RenderTexture(false);
             Tonemap = hdr;
             GL.Viewport(0, 0, (uint)window.Size.X, (uint)window.Size.Y);
 

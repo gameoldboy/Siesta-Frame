@@ -18,12 +18,12 @@
 
 	<ItemGroup>
 		<PackageReference Include="ImGui.NET" Version="1.78.0" />
-		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="7.0.0-alpha.1.21474.1" />
+		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-rc.1.21420.1" />
 		<PackageReference Include="Pfim" Version="0.10.1" />
 		<PackageReference Include="SharpEXR" Version="1.0.0.19" />
-		<PackageReference Include="Silk.NET" Version="2.8.0" />
-		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.8.0" />
-		<PackageReference Include="SixLabors.ImageSharp" Version="1.0.4-alpha.0.69" />
+		<PackageReference Include="Silk.NET" Version="2.9.0" />
+		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.9.0" />
+		<PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
 	</ItemGroup>
 
 	<ItemGroup>

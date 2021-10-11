@@ -181,6 +181,8 @@ namespace TextureTools
                         (uint)surface.width, (uint)surface.height, 0, (uint)surfaces[i].data.Length, d);
                 }
             }
+            Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
+            Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
         }
 
         unsafe void Load(void* data, uint width, uint height)
@@ -190,7 +192,8 @@ namespace TextureTools
 
             Program.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb32f,
                 width, height, 0, PixelFormat.Rgb, PixelType.Float, data);
-            Program.GL.GenerateMipmap(TextureTarget.Texture2D);
+            Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
+            Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
         }
 
         unsafe void Load(void* data, uint width, uint height, InternalFormat internalFormat)
@@ -199,12 +202,8 @@ namespace TextureTools
             Bind();
 
             Program.GL.TexImage2D(TextureTarget.Texture2D, 0, internalFormat, width, height, 0, PixelFormat.Rgba, PixelType.UnsignedByte, data);
-            //Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.Repeat);
-            //Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.Repeat);
-            //Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.LinearMipmapLinear);
-            //Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            //Program.GL.TexParameter(TextureTarget.Texture2D, GLEnum.TextureMaxAnisotropy, maxAnisotropy);
-            Program.GL.GenerateMipmap(TextureTarget.Texture2D);
+            Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Nearest);
+            Program.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Nearest);
         }
 
         public void Bind(TextureUnit textureSlot = TextureUnit.Texture0)

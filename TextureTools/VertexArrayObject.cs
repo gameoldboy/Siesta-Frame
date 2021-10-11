@@ -20,8 +20,8 @@ namespace TextureTools
         public unsafe void VertexAttributePointer<TVertexBaseType>(uint index, int count, VertexAttribPointerType type, uint vertexSize, int offSet)
             where TVertexBaseType : unmanaged
         {
-            Program.GL.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexBaseType), (void*)(offSet * sizeof(TVertexBaseType)));
             Program.GL.EnableVertexAttribArray(index);
+            Program.GL.VertexAttribPointer(index, count, type, false, vertexSize * (uint)sizeof(TVertexBaseType), (void*)(offSet * sizeof(TVertexBaseType)));
         }
 
         public void Bind()
