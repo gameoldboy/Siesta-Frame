@@ -378,7 +378,7 @@ namespace SiestaFrame
             return Result;
         }
 
-        public static float4x4 ortho(float left, float right, float bottom, float top, float zNear, float zFar)
+        public static float4x4 Ortho(float left, float right, float bottom, float top, float zNear, float zFar)
         {
             var Result = float4x4.identity;
             Result[0][0] = 2f / (right - left);
@@ -388,6 +388,15 @@ namespace SiestaFrame
             Result[3][1] = -(top + bottom) / (top - bottom);
             Result[3][2] = -(zFar + zNear) / (zFar - zNear);
             return Result;
+        }
+
+        public static float4x4 RemoveTranslation(float4x4 m)
+        {
+            return new float4x4(
+                new float4(-m.c0.x, -m.c0.y, -m.c0.z, 0.0f),
+                new float4(m.c1.x, m.c1.y, m.c1.z, 0.0f),
+                new float4(m.c2.x, m.c2.y, m.c2.z, 0.0f),
+                new float4(0.0f, 0.0f, 0.0f, 1.0f));
         }
     }
 }

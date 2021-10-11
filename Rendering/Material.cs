@@ -63,6 +63,9 @@ namespace SiestaFrame.Rendering
         public int AlphaHashedLocation { get; private set; }
         public int AlphaDitherLocation { get; private set; }
         public int ScreenSizeLocation { get; private set; }
+        public int PrevMatrixModelLocation { get; private set; }
+        public int PrevMatrixViewLocation { get; private set; }
+        public int PrevMatrixProjectionLocation { get; private set; }
 
         public BlendMode Mode { get; set; }
 
@@ -70,7 +73,7 @@ namespace SiestaFrame.Rendering
         {
             BaseColor = new float4(0.5f, 0.5f, 0.5f, 1f);
             BaseMap = Texture.White;
-            TilingOffset = new float4(1f, 1f, 0f, 0f);
+            TilingOffset = new float4(1f, 1f, 0, 0);
             NormalScale = 1f;
             NormalMap = Texture.Normal;
             Smoothness = 0.5f;
@@ -78,9 +81,9 @@ namespace SiestaFrame.Rendering
             MetallicMap = Texture.White;
             SpecularColor = new float4(1f, 1f, 1f, 1f);
             SpecularMap = Texture.White;
-            EmissiveColor = new float3(0f, 0f, 0f);
+            EmissiveColor = new float3(0, 0, 0);
             EmissiveMap = Texture.White;
-            SelectedColor = new float3(0f, 0f, 0f);
+            SelectedColor = new float3(0, 0, 0);
             OcclusionStrength = 1f;
             OcclusionMap = Texture.White;
             MatCapColor = new float3(0.5f, 0.5f, 0.5f);
@@ -123,6 +126,9 @@ namespace SiestaFrame.Rendering
             AlphaHashedLocation = Shader.GetUniformLocation("_AlphaHashed");
             AlphaDitherLocation = Shader.GetUniformLocation("_AlphaDither");
             ScreenSizeLocation = Shader.GetUniformLocation("_ScreenSize");
+            PrevMatrixModelLocation = Shader.GetUniformLocation("PrevMatrixModel");
+            PrevMatrixViewLocation = Shader.GetUniformLocation("PrevMatrixView");
+            PrevMatrixProjectionLocation = Shader.GetUniformLocation("PrevMatrixProjection");
         }
     }
 }

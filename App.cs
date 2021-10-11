@@ -43,7 +43,7 @@ namespace SiestaFrame
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
 
-            MainWindow = new SiestaWindow("Siesta Frame *Demo v0.02*", new uint2(1280, 720));
+            MainWindow = new SiestaWindow("Siesta Frame 🌸Demo v0.03🌸", new uint2(1280, 720));
 
             MainWindow.Load += onLoad;
             MainWindow.Update += onUpdate;
@@ -64,11 +64,9 @@ namespace SiestaFrame
         }
 
         ShadowMap shadowMap;
-        MotionVector motionVector;
+        GBuffer gBuffer;
         TemporalAntiAliasing temporalAntiAliasing;
         PostProcessing postProcessing;
-
-        float4 clearColor = new float4(0.75f, 0.78f, 0.8f, 1f);
 
         unsafe void onLoad()
         {
@@ -80,17 +78,15 @@ namespace SiestaFrame
             foreach (var mouse in MainWindow.InputContext.Mice)
             {
                 mouse.Cursor.CursorMode = CursorMode.Raw;
-                mouse.MouseUp += onMouseUp;
-                mouse.MouseDown += onMouseDown;
                 mouse.MouseMove += onMouseMove;
                 mouse.Scroll += onMouseWheel;
             }
 
-            GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+            GraphicsAPI.GL.ClearColor(0, 0, 0, 0);
 
             shadowMap = new ShadowMap(4096, 4096);
             postProcessing = new PostProcessing();
-            motionVector = new MotionVector();
+            gBuffer = new GBuffer();
             temporalAntiAliasing = new TemporalAntiAliasing();
 
             SceneManager = new SceneManager();
@@ -104,9 +100,9 @@ namespace SiestaFrame
 
             foreach (var material in floor.Materials)
             {
-                material.BaseColor = new float4(1f, 1f, 1f, 1f);
+                material.BaseColor = new float4(new float3(1.75f), 1f);
                 material.BaseMap = SceneManager.AddTexture("checkerboard.gobt");
-                material.MatCapColor = new float3(0.05f, 0.05f, 0.05f);
+                material.MatCapColor = new float3(0.1f);
                 material.SpecularColor = new float4(0f, 0f, 0f, 1f);
                 material.TilingOffset = new float4(20f, 20f, 0f, 0f);
             }
@@ -127,7 +123,7 @@ namespace SiestaFrame
             {
                 material.BaseColor = new float4(8f, 8f, 8f, 1f);
                 //material.BaseMap = Rendering.Texture.White;
-                material.MatCapColor = new float3(1f, 1f, 1f);
+                material.MatCapColor = new float3(1f);
                 material.SpecularColor = new float4(0.5f, 0.5f, 0.5f, 0.5f);
                 material.MatCapMap = SceneManager.AddTexture("5C4E41_CCCDD6_9B979B_B1AFB0-512px.gobt");
             }
@@ -281,31 +277,33 @@ namespace SiestaFrame
 
             temporalAntiAliasing.PreTemporalAntiAliasing(scene.MainCamera);
 
-            MainWindow.BindFrameBuffer(MainWindow.ColorAttachment, MainWindow.DepthAttachment);
-            GraphicsAPI.GL.ClearColor(clearColor.x, clearColor.y, clearColor.z, clearColor.w);
+            MainWindow.BindFrameBuffer(new uint[] { MainWindow.ColorAttachment, gBuffer.NormalTexture, gBuffer.MotionVectors }, MainWindow.DepthAttachment);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, MainWindow.Width, MainWindow.Height);
             scene.Render(shadowMap, temporalAntiAliasing);
 
-            motionVector.RenderMotionVector(scene);
-
             scene.ClearInstancedList();
 
-            postProcessing.Bloom.Threshold = bloomThreshold;
-            postProcessing.Bloom.Intensity = bloomIntensity;
-            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, shadowMap, motionVector, temporalAntiAliasing);
+            postProcessing.DoPostProcessing(MainWindow.ColorAttachment, MainWindow.DepthAttachment, shadowMap, gBuffer, temporalAntiAliasing);
         }
 
+        Vector2 imguiWindowSize;
+        bool mouseLB;
         Vector3 mainLightDir;
         float shadowRange;
         bool vSync = true;
         bool fullScreen = false;
         float bloomThreshold = 0.8f;
         float bloomIntensity = 1f;
-        bool tonemap = false;
+        float ppExposure = 0;
+        bool ppTonemapping = true;
+        float ppContrast = 0.9f;
+        float ppSaturation = 1.2f;
+        float ppTemperature = 0;
+        float ppTint = 0;
 
-        void onGUI(float deltaTime)
+        unsafe void onGUI(float deltaTime)
         {
             FrameTimer += deltaTime;
             FrameCount++;
@@ -316,9 +314,34 @@ namespace SiestaFrame
                 FrameCount = 0;
             }
 
-            ImGui.Begin("Controller");
-            ImGui.Text($"FPS:{framesPerSecond}");
-            ImGui.SliderFloat3("Main Light Direction", ref mainLightDir, 0, 360f);
+            var style = ImGui.GetStyle();
+            if (canMouseMove)
+            {
+                var isMouseLBDown = ImGui.IsMouseDown(ImGuiMouseButton.Left);
+                if (mouseLB != isMouseLBDown)
+                {
+                    if (isMouseLBDown)
+                    {
+                        onMouseDown(ImGui.GetMousePos(), MouseButton.Left);
+                    }
+                    mouseLB = isMouseLBDown;
+                }
+                style.NativePtr->Alpha = 0.7f;
+                ImGui.Begin("调试面板", ImGuiWindowFlags.NoInputs);
+            }
+            else
+            {
+                style.NativePtr->Alpha = 1f;
+                ImGui.Begin("调试面板");
+                if (imguiWindowSize == default)
+                {
+                    imguiWindowSize = ImGui.GetWindowSize();
+                    //imguiWindowSize.X += 150;
+                    ImGui.SetWindowSize(imguiWindowSize);
+                }
+            }
+            ImGui.Text($"帧/秒:{framesPerSecond}");
+            ImGui.SliderFloat3("主光方向", ref mainLightDir, 0, 360f);
             if (ImGui.Checkbox("垂直同步", ref vSync))
             {
                 MainWindow.Window.VSync = vSync;
@@ -347,11 +370,31 @@ namespace SiestaFrame
                 MainWindow.AllocRenderTexture(3840, 2160);
                 MainWindow.SetFullScreen(fullScreen, vSync);
             }
-            ImGui.SliderFloat("Bloom Threshold", ref bloomThreshold, 0, 2f);
-            ImGui.SliderFloat("Bloom Intensity", ref bloomIntensity, 0, 10f);
-            if (ImGui.Checkbox("Tone Mapping", ref tonemap))
+            if (ImGui.SliderFloat("Bloom阈值", ref bloomThreshold, 0, 2f))
             {
-                postProcessing.Tonemapping = tonemap;
+                postProcessing.Bloom.Threshold = bloomThreshold;
+            }
+            if (ImGui.SliderFloat("Bloom亮度", ref bloomIntensity, 0, 10f))
+            {
+                postProcessing.Bloom.Intensity = bloomIntensity;
+            }
+            if (ImGui.SliderFloat("曝光度", ref ppExposure, -10f, 10f))
+            {
+                postProcessing.Exposure = ppExposure;
+            }
+            if (ImGui.Checkbox("HDR色调映射", ref ppTonemapping))
+            {
+                postProcessing.Tonemapping = ppTonemapping;
+            }
+            if (ImGui.SliderFloat("对比度", ref ppContrast, 0, 2f) |
+                ImGui.SliderFloat("饱和度", ref ppSaturation, 0, 2f) |
+                ImGui.SliderFloat("色温", ref ppTemperature, -1, 1f) |
+                ImGui.SliderFloat("色调", ref ppTint, -1, 1f))
+            {
+                postProcessing.ColorAdjustments.Contrast = ppContrast;
+                postProcessing.ColorAdjustments.Saturation = ppSaturation;
+                postProcessing.ColorAdjustments.Temperature = ppTemperature;
+                postProcessing.ColorAdjustments.Tint = ppTint;
             }
             if (ImGui.Checkbox("全屏", ref fullScreen))
             {
@@ -364,7 +407,7 @@ namespace SiestaFrame
         void onClose()
         {
             shadowMap.Dispose();
-            motionVector.Dispose();
+            gBuffer.Dispose();
             temporalAntiAliasing.Dispose();
             postProcessing.Dispose();
             SceneManager.Instance.CurrentScene.Dispose();
@@ -407,7 +450,7 @@ namespace SiestaFrame
 
         Entity currentSelect;
 
-        void onMouseDown(IMouse mouse, MouseButton mouseButton)
+        void onMouseDown(Vector2 pos, MouseButton mouseButton)
         {
             var mainCamera = SceneManager.Instance.CurrentScene.MainCamera;
             var rayStart = MathHelper.ToVector3(mainCamera.Transform.Position);
@@ -511,7 +554,7 @@ namespace SiestaFrame
 
         void onResizeInternal(uint2 size)
         {
-            motionVector.Alloc();
+            gBuffer.Alloc();
             temporalAntiAliasing.Alloc();
             postProcessing.Bloom.Alloc();
         }

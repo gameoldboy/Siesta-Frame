@@ -5,6 +5,7 @@ in vec4 _TexCoords;
 in mat3 _TBN;
 in vec4 _PositionLS;
 in vec4 _PositionCS;
+in vec4 _PrevPosCS;
 
 uniform vec4 _BaseColor;
 uniform sampler2D _BaseMap;
@@ -36,7 +37,9 @@ uniform vec2 _ScreenSize;
 vec2 ShadowMapSize = textureSize(_ShadowMap, 0);
 vec2 ShadowMapTexelSize = 1.0 / ShadowMapSize;
 
-out vec4 FragColor;
+layout (location = 0) out vec4 FragColor;
+layout (location = 1) out vec4 NormalMap;
+layout (location = 2) out vec4 MotionVectors;
 
 vec2 poissonDisk[16] = vec2[]( 
     vec2( -0.94201624, -0.39906216 ), 
@@ -57,11 +60,13 @@ vec2 poissonDisk[16] = vec2[](
     vec2( 0.14383161, -0.14100790 )
 );
 
-float hash(vec2 input){
+float hash(vec2 input)
+{
     return fract(1.0e4 * sin(17.0 * input.x + 0.1 * input.y) * (0.1 + abs(sin(13.0 * input.y + input.x))));
 }
 
-float hash3D(vec3 input){
+float hash3D(vec3 input)
+{
     return hash(vec2(hash(input.xy), input.z));
 }
 
@@ -178,4 +183,11 @@ void main()
                     _SelectedColor;
 
     FragColor = vec4(finalColor, alpha);
+
+    NormalMap = vec4(normalWS, alpha);
+
+    vec2 screenPos = _PositionCS.xy / _PositionCS.w;
+    vec2 prevScreenPos = _PrevPosCS.xy / _PrevPosCS.w;
+
+    MotionVectors = vec4((screenPos - prevScreenPos) * 0.5, 0.0, alpha);
 }

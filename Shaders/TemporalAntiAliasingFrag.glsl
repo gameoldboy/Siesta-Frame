@@ -5,7 +5,7 @@ in vec2 uv;
 uniform sampler2D _BaseMap;
 uniform sampler2D _HistoryMap;
 uniform sampler2D _DepthTexture;
-uniform sampler2D _MotionVectorMap;
+uniform sampler2D _MotionVectors;
 uniform vec4 _Jitter;
 
 vec2 BaseMapSize = textureSize(_BaseMap, 0);
@@ -203,18 +203,18 @@ vec2 FindClosestUV(float depth, vec2 uv)
 void main()
 {
     float depth = texture(_DepthTexture, uv).x;
-    vec2 motionVector = texture(_MotionVectorMap, FindClosestUV(depth, uv)).xy;
+    vec2 motionVector = texture(_MotionVectors, FindClosestUV(depth, uv)).xy;
     vec2 prevUV = uv - motionVector + (_Jitter.xy - _Jitter.zw);
-    if(motionVector == vec2(0))
+    if(motionVector == vec2(0.0))
     {
         prevUV = uv;
     }
     motionVector = uv - prevUV;
     vec3 samples[9];
     GetSamples(uv, samples);
-    if (prevUV.x < 0 || prevUV.x > 1 || prevUV.y < 0 || prevUV.y > 1)
+    if (prevUV.x < 0.0 || prevUV.x > 1.0 || prevUV.y < 0.0 || prevUV.y > 1.0)
     {
-        FragColor = vec4(max(vec3(0), samples[4]), 1.0);
+        FragColor = vec4(max(vec3(0.0), samples[4]), 1.0);
         return;
     }
     vec3 historyMapColor = SampleHistory(prevUV);
@@ -226,5 +226,5 @@ void main()
     historyMapColor = ReinhardToneMap(historyMapColor);
     vec3 finalColor = InverseReinhardToneMap(mix(color, historyMapColor, finalBlend));
 
-    FragColor = vec4(max(vec3(0), finalColor), 1.0);
+    FragColor = vec4(max(vec3(0.0), finalColor), 1.0);
 }

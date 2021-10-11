@@ -1,7 +1,7 @@
 #version 430 core
 
 layout (location = 0) in vec3 PositionOS;
-layout (location = 4) in vec4 TexCoords;
+layout (location = 3) in vec4 TexCoords;
 
 struct InstancedData
 {

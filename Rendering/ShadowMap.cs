@@ -100,7 +100,6 @@ namespace SiestaFrame.Rendering
                 throw new NotImplementedException("TO DO: Non-Directional Light");
             }
             GraphicsAPI.GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
-            GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
             GraphicsAPI.GL.Clear(ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, Width, Height);
@@ -149,6 +148,7 @@ namespace SiestaFrame.Rendering
                 var entities = scene.InstancedList[i];
                 var mesh = scene.InstancedDictionaryIndex[i];
                 var material = entities[0].Materials[0];
+
                 mesh.VAO.Bind();
                 instancedShader.Use();
                 instancedShader.SetMatrix(matrixViewInstancedLocation, scene.MainLight.ViewMatrix);

@@ -23,7 +23,7 @@ namespace SiestaFrame.Rendering
 
         public float4x4 ViewMatrix => MathHelper.LookAt(shadowFitTransform.Position, shadowFitTransform.Position + Transform.Forward, Transform.Up);
         public float4x4 ProjectionMatrix =>
-             MathHelper.ortho(-ShadowRange, ShadowRange, -ShadowRange, ShadowRange, 0.1f, ShadowRange * 2);
+             MathHelper.Ortho(-ShadowRange, ShadowRange, -ShadowRange, ShadowRange, 0.1f, ShadowRange * 2);
 
         public Light()
         {

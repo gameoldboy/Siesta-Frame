@@ -7,8 +7,7 @@ namespace SiestaFrame.Rendering
 {
     public class TemporalAntiAliasing : IDisposable
     {
-        uint historyMapA;
-        uint historyMapB;
+        uint historyMap;
 
         Shader shader;
 
@@ -20,8 +19,6 @@ namespace SiestaFrame.Rendering
 
         HaltonSequence haltonSequence;
 
-        bool swapHistory;
-
         public TemporalAntiAliasing()
         {
             Alloc();
@@ -31,7 +28,7 @@ namespace SiestaFrame.Rendering
             baseMapLocation = shader.GetUniformLocation("_BaseMap");
             depthTextureLocation = shader.GetUniformLocation("_DepthTexture");
             historyMapLocation = shader.GetUniformLocation("_HistoryMap");
-            motionVectorMapLocation = shader.GetUniformLocation("_MotionVectorMap");
+            motionVectorMapLocation = shader.GetUniformLocation("_MotionVectors");
             jitterLocation = shader.GetUniformLocation("_Jitter");
 
             haltonSequence = new HaltonSequence(1024);
@@ -39,25 +36,14 @@ namespace SiestaFrame.Rendering
 
         public unsafe void Alloc()
         {
-            if (historyMapA > 0)
+            if (historyMap > 0)
             {
-                GraphicsAPI.GL.DeleteTexture(historyMapA);
-            }
-            if (historyMapB > 0)
-            {
-                GraphicsAPI.GL.DeleteTexture(historyMapB);
+                GraphicsAPI.GL.DeleteTexture(historyMap);
             }
             var width = App.Instance.MainWindow.Width;
             var heigth = App.Instance.MainWindow.Height;
-            historyMapA = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapA);
-            GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, width, heigth, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
-            GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
-            historyMapB = GraphicsAPI.GL.GenTexture();
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapB);
+            historyMap = GraphicsAPI.GL.GenTexture();
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMap);
             GraphicsAPI.GL.TexImage2D(TextureTarget.Texture2D, 0, InternalFormat.Rgb16f, width, heigth, 0, PixelFormat.Rgb, GLEnum.HalfFloat, null);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMinFilter, (int)GLEnum.Linear);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureMagFilter, (int)GLEnum.Linear);
@@ -75,19 +61,11 @@ namespace SiestaFrame.Rendering
             mainCamera.JitterProjectionMatrix = matrix;
         }
 
-        public unsafe void DoTemporalAntiAliasing(PostProcessing postProcessing, uint colorAttachment, uint depthAttachment, MotionVector motionVector)
+        public unsafe void DoTemporalAntiAliasing(PostProcessing postProcessing, uint colorAttachment, uint depthAttachment, GBuffer gBuffer)
         {
             var width = App.Instance.MainWindow.Width;
             var height = App.Instance.MainWindow.Height;
-            if (swapHistory)
-            {
-                App.Instance.MainWindow.BindFrameBuffer(historyMapA);
-            }
-            else
-            {
-                App.Instance.MainWindow.BindFrameBuffer(historyMapB);
-            }
-            GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
+            App.Instance.MainWindow.BindFrameBuffer(App.Instance.MainWindow.TempColorAttachment);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit);
             GraphicsAPI.GL.Disable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, width, height);
@@ -100,16 +78,10 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, depthAttachment);
             shader.SetInt(depthTextureLocation, 1);
             GraphicsAPI.GL.ActiveTexture(TextureUnit.Texture2);
-            if (swapHistory)
-            {
-                GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapB);
-            }
-            else
-            {
-                GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMapA);
-            }
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, historyMap);
             shader.SetInt(historyMapLocation, 2);
-            motionVector.BindMotionVector(TextureUnit.Texture3);
+            GraphicsAPI.GL.ActiveTexture(TextureUnit.Texture3);
+            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, gBuffer.MotionVectors);
             shader.SetInt(motionVectorMapLocation, 3);
             haltonSequence.Peek(out var jitterX, out var jitterY);
             haltonSequence.PeekPrev(out var prevJitterX, out var prevJitterY);
@@ -122,15 +94,7 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
             GraphicsAPI.GL.UseProgram(0);
-            if (swapHistory)
-            {
-                postProcessing.Blit(historyMapA, colorAttachment, width, height);
-            }
-            else
-            {
-                postProcessing.Blit(historyMapB, colorAttachment, width, height);
-            }
-            swapHistory = !swapHistory;
+            postProcessing.Blit(App.Instance.MainWindow.TempColorAttachment, new uint[] { colorAttachment, historyMap }, width, height);
         }
 
         struct HaltonSequence
@@ -198,8 +162,7 @@ namespace SiestaFrame.Rendering
 
         public void Dispose()
         {
-            GraphicsAPI.GL.DeleteTexture(historyMapA);
-            GraphicsAPI.GL.DeleteTexture(historyMapB);
+            GraphicsAPI.GL.DeleteTexture(historyMap);
         }
     }
 }

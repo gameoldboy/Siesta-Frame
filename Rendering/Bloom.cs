@@ -13,7 +13,6 @@ namespace SiestaFrame.Rendering
         Shader thresholdShader;
         Shader downShader;
         Shader upShader;
-        Shader finalShader;
 
         int thresholdBaseMapLocation;
         int thresholdLocation;
@@ -25,10 +24,6 @@ namespace SiestaFrame.Rendering
         int upPrevMapLocation;
         int upSizeLocation;
 
-        int finalBaseMapLocation;
-        int finalMapLocation;
-        int intensityLocation;
-
         public float Threshold { get; set; }
         public float Intensity { get; set; }
 
@@ -39,7 +34,6 @@ namespace SiestaFrame.Rendering
             thresholdShader = SceneManager.AddCommonShader("BloomVert.glsl", "BloomThresholdFrag.glsl");
             downShader = SceneManager.AddCommonShader("BloomVert.glsl", "BloomDownFrag.glsl");
             upShader = SceneManager.AddCommonShader("BloomVert.glsl", "BloomUpFrag.glsl");
-            finalShader = SceneManager.AddCommonShader("BloomVert.glsl", "BloomFinalFrag.glsl");
 
             thresholdBaseMapLocation = thresholdShader.GetUniformLocation("_baseMap");
             thresholdLocation = thresholdShader.GetUniformLocation("_Threshold");
@@ -50,10 +44,6 @@ namespace SiestaFrame.Rendering
             upBaseMapLocation = upShader.GetUniformLocation("_baseMap");
             upPrevMapLocation = upShader.GetUniformLocation("_PrevMap");
             upSizeLocation = upShader.GetUniformLocation("_Size");
-
-            finalBaseMapLocation = finalShader.GetUniformLocation("_baseMap");
-            finalMapLocation = finalShader.GetUniformLocation("_FinalMap");
-            intensityLocation = finalShader.GetUniformLocation("_Intensity");
 
             Threshold = 1f;
             Intensity = 1f;
@@ -82,7 +72,7 @@ namespace SiestaFrame.Rendering
             {
                 var w = (int)(width / math.pow(2, i + 1));
                 var h = (int)(height / math.pow(2, i + 1));
-                if (w < 10 || h < 10)
+                if (w < 10 && h < 10)
                 {
                     break;
                 }
@@ -122,7 +112,6 @@ namespace SiestaFrame.Rendering
             var height = App.Instance.MainWindow.Height;
             //threshold pass
             App.Instance.MainWindow.BindFrameBuffer(downTextures[0]);
-            GraphicsAPI.GL.ClearColor(0f, 0f, 0f, 0f);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit);
             GraphicsAPI.GL.Disable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, width / 2, height / 2);
@@ -179,23 +168,12 @@ namespace SiestaFrame.Rendering
                 GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
                 GraphicsAPI.GL.UseProgram(0);
             }
-            //final pass
-            App.Instance.MainWindow.BindFrameBuffer(App.Instance.MainWindow.TempColorAttachment);
-            GraphicsAPI.GL.Viewport(0, 0, width, height);
-            finalShader.Use();
-            GraphicsAPI.GL.ActiveTexture(TextureUnit.Texture0);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, colorAttachment);
-            finalShader.SetInt(finalBaseMapLocation, 0);
-            GraphicsAPI.GL.ActiveTexture(TextureUnit.Texture1);
+        }
+
+        public void BindBloomMap(TextureUnit unit = TextureUnit.Texture0)
+        {
+            GraphicsAPI.GL.ActiveTexture(unit);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, upTextures[0]);
-            finalShader.SetInt(finalMapLocation, 1);
-            finalShader.SetFloat(intensityLocation, Intensity);
-            GraphicsAPI.GL.DrawElements(PrimitiveType.Triangles, quad, DrawElementsType.UnsignedInt, null);
-            GraphicsAPI.GL.BindVertexArray(0);
-            GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
-            GraphicsAPI.GL.UseProgram(0);
-            //blit
-            postProcessing.Blit(App.Instance.MainWindow.TempColorAttachment, colorAttachment, width, height);
         }
 
         public void Dispose()
@@ -211,7 +189,6 @@ namespace SiestaFrame.Rendering
             thresholdShader.Dispose();
             downShader.Dispose();
             upShader.Dispose();
-            finalShader.Dispose();
         }
     }
 }

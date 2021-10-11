@@ -1,4 +1,5 @@
 ﻿using SiestaFrame.Object;
+using SiestaFrame.SceneManagement;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
@@ -19,8 +20,7 @@ namespace SiestaFrame.Rendering
         {
             public float3 Position;
             public float3 Normal;
-            public float3 Tangent;
-            public float3 Bitangent;
+            public float4 Tangent;
             public float4 TexCoords;
             public float4 Color;
             public uint4 BoneIds;
@@ -64,7 +64,7 @@ namespace SiestaFrame.Rendering
 
         public BufferObject<InstancedData> instancedSSBO { get; private set; }
 
-        public void Setup()
+        public unsafe void Setup()
         {
             VBO?.Dispose();
             EBO?.Dispose();
@@ -78,58 +78,55 @@ namespace SiestaFrame.Rendering
             EBO.Bind();
             EBO.BufferData(Indices);
 
-            uint vertexSize = 28;
+            uint vertexSize;
+            vertexSize = (uint)sizeof(Vertex);
             var offset = 0;
             // 顶点坐标
-            VAO.VertexAttributePointer<float>(0, 3, VertexAttribPointerType.Float, vertexSize, offset);
+            VAO.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, vertexSize, offset);
             // 顶点法线
-            VAO.VertexAttributePointer<float>(1, 3, VertexAttribPointerType.Float, vertexSize, offset += 3);
+            VAO.VertexAttributePointer(1, 3, VertexAttribPointerType.Float, vertexSize, offset += 3 * sizeof(float));
             // 顶点切线
-            VAO.VertexAttributePointer<float>(2, 3, VertexAttribPointerType.Float, vertexSize, offset += 3);
-            // 顶点副切线
-            VAO.VertexAttributePointer<float>(3, 3, VertexAttribPointerType.Float, vertexSize, offset += 3);
+            VAO.VertexAttributePointer(2, 4, VertexAttribPointerType.Float, vertexSize, offset += 3 * sizeof(float));
             // 顶点UV
-            VAO.VertexAttributePointer<float>(4, 4, VertexAttribPointerType.Float, vertexSize, offset += 3);
+            VAO.VertexAttributePointer(3, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(float));
             // 顶点颜色
-            VAO.VertexAttributePointer<float>(5, 4, VertexAttribPointerType.Float, vertexSize, offset += 4);
+            VAO.VertexAttributePointer(4, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(float));
             // 骨骼索引
-            VAO.VertexAttributePointer<uint>(6, 4, VertexAttribPointerType.UnsignedInt, vertexSize, offset += 4);
+            VAO.VertexAttributePointer(5, 4, VertexAttribPointerType.UnsignedInt, vertexSize, offset += 4 * sizeof(float));
             // 骨骼权重
-            VAO.VertexAttributePointer<float>(7, 4, VertexAttribPointerType.Float, vertexSize, offset += 4);
+            VAO.VertexAttributePointer(6, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(uint));
 
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
             GraphicsAPI.GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
-            GraphicsAPI.GL.DisableVertexAttribArray(0);
-            GraphicsAPI.GL.DisableVertexAttribArray(1);
-            GraphicsAPI.GL.DisableVertexAttribArray(2);
-            GraphicsAPI.GL.DisableVertexAttribArray(3);
-            GraphicsAPI.GL.DisableVertexAttribArray(4);
-            GraphicsAPI.GL.DisableVertexAttribArray(5);
-            GraphicsAPI.GL.DisableVertexAttribArray(6);
-            GraphicsAPI.GL.DisableVertexAttribArray(7);
-            GraphicsAPI.GL.DisableVertexAttribArray(8);
-            GraphicsAPI.GL.DisableVertexAttribArray(9);
-            GraphicsAPI.GL.DisableVertexAttribArray(10);
-            GraphicsAPI.GL.DisableVertexAttribArray(11);
-            GraphicsAPI.GL.DisableVertexAttribArray(12);
-            GraphicsAPI.GL.DisableVertexAttribArray(13);
-            GraphicsAPI.GL.DisableVertexAttribArray(14);
-            GraphicsAPI.GL.DisableVertexAttribArray(15);
 
             instancedSSBO?.Dispose();
             instancedSSBO = new BufferObject<InstancedData>(BufferTargetARB.ShaderStorageBuffer);
         }
 
-        void setShader(Material material, Camera camera, Light mainLight, ShadowMap shadowMap,
-                       TemporalAntiAliasing temporalAntiAliasing,
-                       float4x4 modelMatrix, bool alphaHashed, bool alphaDither)
+        public struct DrawData
         {
-            material.Shader.SetMatrix(material.MatrixModelLocation, modelMatrix);
-            material.Shader.SetMatrix(material.MatrixViewLocation, camera.ViewMatrix);
-            material.Shader.SetMatrix(material.MatrixProjectionLocation, camera.JitterProjectionMatrix);
-            material.Shader.SetMatrix(material.MatrixMainLightViewLocation, mainLight.ViewMatrix);
-            material.Shader.SetMatrix(material.MatrixMainLightProjectionLocation, mainLight.ProjectionMatrix);
+            public Mesh mesh;
+            public Material material;
+            public bool clockwise;
+            public float4x4 modelMatrix;
+            public float4x4 prevModelMatrix;
+
+            public static bool CalculateClockwise(Transform transform)
+            {
+                return math.sign(transform.Scale.x) * math.sign(transform.Scale.y) * math.sign(transform.Scale.z) < 0;
+            }
+        }
+
+        void setShader(DrawData drawData, Scene.RenderingData renderingData,
+            ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing, bool alphaHashed, bool alphaDither)
+        {
+            var material = drawData.material;
+            material.Shader.SetMatrix(material.MatrixModelLocation, drawData.modelMatrix);
+            material.Shader.SetMatrix(material.MatrixViewLocation, renderingData.viewMatrix);
+            material.Shader.SetMatrix(material.MatrixProjectionLocation, renderingData.projectionMatrix);
+            material.Shader.SetMatrix(material.MatrixMainLightViewLocation, renderingData.mainLightViewMatrix);
+            material.Shader.SetMatrix(material.MatrixMainLightProjectionLocation, renderingData.mainLightProjectionMatrix);
             material.Shader.SetVector(material.BaseColorLocation, material.BaseColor);
             material.BaseMap.Bind(TextureUnit.Texture0);
             material.Shader.SetInt(material.BaseMapLocation, 0);
@@ -154,20 +151,24 @@ namespace SiestaFrame.Rendering
             material.Shader.SetVector(material.MatCapColorlLocation, material.MatCapColor);
             material.MatCapMap.Bind(TextureUnit.Texture6);
             material.Shader.SetInt(material.MatCapMapLocation, 6);
-            material.Shader.SetVector(material.ViewPosWSLocation, camera.Transform.Position);
-            material.Shader.SetVector(material.MainLightDirLocation, -mainLight.Transform.Forward);
+            material.Shader.SetVector(material.ViewPosWSLocation, renderingData.cameraPosition);
+            material.Shader.SetVector(material.MainLightDirLocation, renderingData.mainLightDirection);
             shadowMap.BindShadowMap(TextureUnit.Texture7);
             material.Shader.SetInt(material.ShadowMapLocation, 7);
-            material.Shader.SetFloat(material.MainLightShadowRangeLocation, mainLight.ShadowRange);
+            material.Shader.SetFloat(material.MainLightShadowRangeLocation, renderingData.mainLightShadowRange);
             material.Shader.SetVector(material.TemporalJitterLocation, temporalAntiAliasing.GetJitter2());
             material.Shader.SetVector(material.ScreenSizeLocation, new float2(App.Instance.MainWindow.Width, App.Instance.MainWindow.Height));
             material.Shader.SetBool(material.AlphaHashedLocation, alphaHashed);
             material.Shader.SetBool(material.AlphaDitherLocation, alphaDither);
+            material.Shader.SetMatrix(material.PrevMatrixModelLocation, drawData.prevModelMatrix);
+            material.Shader.SetMatrix(material.PrevMatrixViewLocation, renderingData.prevViewMatrix);
+            material.Shader.SetMatrix(material.PrevMatrixProjectionLocation, renderingData.prevProjectionMatrix);
         }
 
-        public unsafe void Draw(Transform transform, Material material, Camera camera, Light mainLight, ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
+        public unsafe void Draw(DrawData drawData, Scene.RenderingData renderingData,
+            ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
         {
-            if (math.sign(transform.Scale.x) * math.sign(transform.Scale.y) * math.sign(transform.Scale.z) < 0)
+            if (drawData.clockwise)
             {
                 GraphicsAPI.GL.FrontFace(FrontFaceDirection.CW);
             }
@@ -177,7 +178,7 @@ namespace SiestaFrame.Rendering
             }
             var alphaHashed = false;
             var alphaDither = false;
-            switch (material.Mode)
+            switch (drawData.material.Mode)
             {
                 case Material.BlendMode.Add:
                     GraphicsAPI.GL.Enable(EnableCap.Blend);
@@ -198,8 +199,8 @@ namespace SiestaFrame.Rendering
             }
 
             VAO.Bind();
-            material.Shader.Use();
-            setShader(material, camera, mainLight, shadowMap, temporalAntiAliasing, transform.ModelMatrix, alphaHashed, alphaDither);
+            drawData.material.Shader.Use();
+            setShader(drawData, renderingData, shadowMap, temporalAntiAliasing, alphaHashed, alphaDither);
             GraphicsAPI.GL.DrawElements(PrimitiveType.Triangles, (uint)Indices.Length, DrawElementsType.UnsignedInt, null);
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
@@ -210,11 +211,12 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.FrontFace(FrontFaceDirection.Ccw);
         }
 
-        public unsafe void DrawInstanced(Material material, Camera camera, Light mainLight, ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing, int amount)
+        public unsafe void DrawInstanced(DrawData drawData, Scene.RenderingData renderingData,
+            ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing, int amount)
         {
             var alphaHashed = false;
             var alphaDither = false;
-            switch (material.Mode)
+            switch (drawData.material.Mode)
             {
                 case Material.BlendMode.Add:
                     GraphicsAPI.GL.Enable(EnableCap.Blend);
@@ -235,8 +237,8 @@ namespace SiestaFrame.Rendering
             }
 
             VAO.Bind();
-            material.Shader.Use();
-            setShader(material, camera, mainLight, shadowMap, temporalAntiAliasing, float4x4.identity, alphaHashed, alphaDither);
+            drawData.material.Shader.Use();
+            setShader(drawData, renderingData, shadowMap, temporalAntiAliasing, alphaHashed, alphaDither);
             GraphicsAPI.GL.DrawElementsInstanced(PrimitiveType.Triangles, (uint)Indices.Length, DrawElementsType.UnsignedInt, null, (uint)amount);
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);

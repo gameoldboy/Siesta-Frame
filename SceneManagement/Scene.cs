@@ -3,6 +3,7 @@ using SiestaFrame.Rendering;
 using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
+using Unity.Mathematics;
 
 namespace SiestaFrame.SceneManagement
 {
@@ -14,6 +15,7 @@ namespace SiestaFrame.SceneManagement
 
         public Camera MainCamera { get; set; }
         public Light MainLight { get; set; }
+        public SkyBox SkyBox { get; set; }
 
         public Scene(string name)
         {
@@ -21,30 +23,23 @@ namespace SiestaFrame.SceneManagement
             Entites = new List<Entity>();
             MainCamera = new Camera();
             MainLight = new Light();
+            //SkyBox.SkyBoxFaces faces;
+            //faces.right = "right.jpg";
+            //faces.left = "left.jpg";
+            //faces.top = "top.jpg";
+            //faces.bottom = "bottom.jpg";
+            //faces.front = "front.jpg";
+            //faces.back = "back.jpg";
+            SkyBox = new SkyBox();
+            SkyBox.Load("birchwood_4k.gobt");
 
-            transparentList = new List<DrawData>();
+            transparentList = new List<Mesh.DrawData>();
             instancedDictionary = new Dictionary<Mesh, int>();
             InstancedDictionaryIndex = new Dictionary<int, Mesh>();
             InstancedList = new List<List<Entity>>();
         }
 
-        struct DrawData
-        {
-            public Mesh mesh;
-            public Material material;
-            public Transform transform;
-            public int amount;
-
-            public DrawData(Mesh mesh, Material material, Transform transform)
-            {
-                this.mesh = mesh;
-                this.material = material;
-                this.transform = transform;
-                amount = 1;
-            }
-        }
-
-        List<DrawData> transparentList;
+        List<Mesh.DrawData> transparentList;
         Dictionary<Mesh, int> instancedDictionary;
         public Dictionary<int, Mesh> InstancedDictionaryIndex { get; }
         public List<List<Entity>> InstancedList { get; }
@@ -98,17 +93,6 @@ namespace SiestaFrame.SceneManagement
 
         public void ClearInstancedList()
         {
-            // set prev model matrix
-            for (int i = 0; i < InstancedList.Count; i++)
-            {
-                var entities = InstancedList[i];
-                var mesh = InstancedDictionaryIndex[i];
-                for (int j = 0; j < entities.Count; j++)
-                {
-                    var entity = entities[j];
-                    entity.Transform.PrevModelMatrix = mesh.InstancedBuffer[j].ModelMatrix;
-                }
-            }
             instancedDictionary.Clear();
             InstancedDictionaryIndex.Clear();
             for (int i = 0; i < InstancedList.Count; i++)
@@ -120,26 +104,68 @@ namespace SiestaFrame.SceneManagement
             GraphicsAPI.GL.BindBufferBase(BufferTargetARB.ShaderStorageBuffer, 0, 0);
         }
 
+        public struct RenderingData
+        {
+            public struct Light
+            {
+                public float3 direction;
+                public float4x4 viewMatrix;
+                public float4x4 projectionMatrix;
+            }
+
+            public float3 cameraPosition;
+            public float4x4 viewMatrix;
+            public float4x4 projectionMatrix;
+            public float4x4 prevViewMatrix;
+            public float4x4 prevProjectionMatrix;
+            public float3 mainLightDirection;
+            public float4x4 mainLightViewMatrix;
+            public float4x4 mainLightProjectionMatrix;
+            public float mainLightShadowRange;
+            public Light[] lights;
+        }
+
         public void Render(ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
         {
+            RenderingData renderingData;
+            renderingData.cameraPosition = MainCamera.Transform.Position;
+            renderingData.viewMatrix = MainCamera.ViewMatrix;
+            renderingData.projectionMatrix = MainCamera.JitterProjectionMatrix;
+            renderingData.prevViewMatrix = MainCamera.PrevViewMatrix;
+            renderingData.prevProjectionMatrix = MainCamera.PrevProjectionMatrix;
+            renderingData.mainLightDirection = -MainLight.Transform.Forward;
+            renderingData.mainLightViewMatrix = MainLight.ViewMatrix;
+            renderingData.mainLightProjectionMatrix = MainLight.ProjectionMatrix;
+            renderingData.mainLightShadowRange = MainLight.ShadowRange;
+            renderingData.lights = new RenderingData.Light[0];
+
             for (int i = 0; i < Entites.Count; i++)
             {
                 var entity = Entites[i];
                 if (entity.DrawType == Mesh.DrawType.Direct)
                 {
+                    var modelMatrix = entity.Transform.ModelMatrix;
+                    var prevModelMatrix = entity.Transform.PrevModelMatrix;
                     for (int j = 0; j < entity.Meshes.Length; j++)
                     {
                         var mesh = entity.Meshes[j];
                         var material = entity.Materials[j % entity.Materials.Length];
+                        Mesh.DrawData drawData;
+                        drawData.mesh = mesh;
+                        drawData.material = material;
+                        drawData.clockwise = Mesh.DrawData.CalculateClockwise(entity.Transform);
+                        drawData.modelMatrix = modelMatrix;
+                        drawData.prevModelMatrix = prevModelMatrix;
                         if (material.Mode == Material.BlendMode.None)
                         {
-                            mesh.Draw(entity.Transform, material, MainCamera, MainLight, shadowMap, temporalAntiAliasing);
+                            mesh.Draw(drawData, renderingData, shadowMap, temporalAntiAliasing);
                         }
                         else
                         {
-                            transparentList.Add(new DrawData(mesh, material, entity.Transform));
+                            transparentList.Add(drawData);
                         }
                     }
+                    entity.Transform.PrevModelMatrix = modelMatrix;
                 }
             }
 
@@ -150,16 +176,23 @@ namespace SiestaFrame.SceneManagement
                 var material = entities[0].Materials[0];
                 if (material.Mode == Material.BlendMode.None)
                 {
-                    mesh.DrawInstanced(material, MainCamera, MainLight, shadowMap, temporalAntiAliasing, entities.Count);
+                    Mesh.DrawData drawData;
+                    drawData.mesh = mesh;
+                    drawData.material = material;
+                    drawData.clockwise = false;
+                    drawData.modelMatrix = default;
+                    drawData.prevModelMatrix = default;
+
+                    mesh.DrawInstanced(drawData, renderingData, shadowMap, temporalAntiAliasing, entities.Count);
                 }
             }
+
+            SkyBox.Draw(renderingData, new float3(1f), 90f);
 
             for (int i = 0; i < transparentList.Count; i++)
             {
                 var mesh = transparentList[i].mesh;
-                var material = transparentList[i].material;
-                var transform = transparentList[i].transform;
-                mesh.Draw(transform, material, MainCamera, MainLight, shadowMap, temporalAntiAliasing);
+                mesh.Draw(transparentList[i], renderingData, shadowMap, temporalAntiAliasing);
             }
 
             for (int i = 0; i < InstancedList.Count; i++)
@@ -169,9 +202,25 @@ namespace SiestaFrame.SceneManagement
                 var material = entities[0].Materials[0];
                 if (material.Mode != Material.BlendMode.None)
                 {
-                    mesh.DrawInstanced(material, MainCamera, MainLight, shadowMap, temporalAntiAliasing, entities.Count);
+                    Mesh.DrawData drawData;
+                    drawData.mesh = mesh;
+                    drawData.material = material;
+                    drawData.clockwise = false;
+                    drawData.modelMatrix = default;
+                    drawData.prevModelMatrix = default;
+
+                    mesh.DrawInstanced(drawData, renderingData, shadowMap, temporalAntiAliasing, entities.Count);
+                }
+
+                for (int j = 0; j < entities.Count; j++)
+                {
+                    var entity = entities[j];
+                    entity.Transform.PrevModelMatrix = mesh.InstancedBuffer[j].ModelMatrix;
                 }
             }
+
+            MainCamera.PrevViewMatrix = renderingData.viewMatrix;
+            MainCamera.PrevProjectionMatrix = renderingData.projectionMatrix;
 
             transparentList.Clear();
         }
@@ -196,6 +245,7 @@ namespace SiestaFrame.SceneManagement
 
         public void Dispose()
         {
+            SkyBox.Dispose();
             foreach (var entity in Entites)
             {
                 entity.Dispose();

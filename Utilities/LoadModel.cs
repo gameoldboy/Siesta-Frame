@@ -44,8 +44,11 @@ namespace SiestaFrame
                     Mesh.Vertex vertex;
                     vertex.Position = MathHelper.ToFloat3(mesh->MVertices[j]);
                     vertex.Normal = MathHelper.ToFloat3(mesh->MNormals[j]);
-                    vertex.Tangent = MathHelper.ToFloat3(mesh->MTangents[j]);
-                    vertex.Bitangent = MathHelper.ToFloat3(mesh->MBitangents[j]);
+                    var tangent = MathHelper.ToFloat3(mesh->MTangents[j]);
+                    var bitangent = MathHelper.ToFloat3(mesh->MBitangents[j]);
+                    var sign = math.sign(math.dot(math.cross(vertex.Normal, tangent), bitangent));
+                    sign = sign == 0 ? 1f : sign;
+                    vertex.Tangent = new float4(tangent, sign);
                     var uv0 = Vector3.Zero;
                     var uv1 = Vector3.Zero;
                     if (mesh->MTextureCoords[0] != null)
