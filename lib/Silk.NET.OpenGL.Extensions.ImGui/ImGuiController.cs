@@ -73,6 +73,25 @@ namespace Silk.NET.OpenGL.Extensions.ImGui
             BeginFrame();
         }
 
+        /// <summary>
+        /// Constructs a new ImGuiController with font configuration.
+        /// </summary>
+        public ImGuiController(GL gl, IView view, IInputContext input, ImGuiBinaryFontConfig imGuiBinaryFontConfig)
+        {
+            Init(gl, view, input);
+
+            var io = ImGuiNET.ImGui.GetIO();
+            io.Fonts.AddFontFromMemoryTTF(imGuiBinaryFontConfig.FontBuffer, imGuiBinaryFontConfig.FontBufferSize, imGuiBinaryFontConfig.FontSize, null, io.Fonts.GetGlyphRangesChineseFull());
+            io.BackendFlags |= ImGuiBackendFlags.RendererHasVtxOffset;
+
+            CreateDeviceResources();
+            SetKeyMappings();
+
+            SetPerFrameImGuiData(1f / 60f);
+
+            BeginFrame();
+        }
+
         private void Init(GL gl, IView view, IInputContext input)
         {
             _gl = gl;

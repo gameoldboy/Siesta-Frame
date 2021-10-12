@@ -37,11 +37,9 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<PackageReference Include="ImGui.NET" Version="1.78.0" />
 		<PackageReference Include="Microsoft.DotNet.ILCompiler" Version="6.0.0-rc.1.21420.1" />
 		<PackageReference Include="Silk.NET" Version="2.9.0" />
 		<PackageReference Include="Silk.NET.Assimp" Version="2.9.0" />
-		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.9.0" />
 		<PackageReference Include="SixLabors.ImageSharp" Version="1.0.4" />
 	</ItemGroup>
 
@@ -76,9 +74,16 @@
 		<None Include="Assets/**">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
+		<Compile Remove="lib\Silk.NET.OpenGL.Extensions.ImGui\**" />
+		<Compile Remove="ModelTools\**" />
 		<Compile Remove="TextureTools\**" />
+		<EmbeddedResource Remove="lib\Silk.NET.OpenGL.Extensions.ImGui\**" />
+		<EmbeddedResource Remove="ModelTools\**" />
 		<EmbeddedResource Remove="TextureTools\**" />
+		<None Remove="lib\Silk.NET.OpenGL.Extensions.ImGui\**" />
+		<None Remove="ModelTools\**" />
 		<None Remove="TextureTools\**" />
+		<ProjectReference Include="lib\Silk.NET.OpenGL.Extensions.ImGui\Silk.NET.OpenGL.Extensions.ImGui.csproj" />
 		<None Update="lib/FMOD/lib/x64/fmod.dll">
 			<Link>%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

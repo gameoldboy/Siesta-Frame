@@ -5,7 +5,11 @@ VisualStudioVersion = 16.0.31624.102
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Siesta-Frame", "Siesta-Frame.csproj", "{C15EE45F-5793-4EA1-9D4E-17738E06AAD1}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TextureTools", "TextureTools\TextureTools.csproj", "{7FE0987D-6FBF-45DC-90E3-343E12A2D739}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TextureTools", "TextureTools\TextureTools.csproj", "{7FE0987D-6FBF-45DC-90E3-343E12A2D739}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ModelTools", "ModelTools\ModelTools.csproj", "{C924D58D-BB9B-49DB-9683-21995D8FF0AE}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Silk.NET.OpenGL.Extensions.ImGui", "lib\Silk.NET.OpenGL.Extensions.ImGui\Silk.NET.OpenGL.Extensions.ImGui.csproj", "{BF8987ED-58D9-44DB-9C17-3D6B1E8BD416}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +25,14 @@ Global
 		{7FE0987D-6FBF-45DC-90E3-343E12A2D739}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{7FE0987D-6FBF-45DC-90E3-343E12A2D739}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{7FE0987D-6FBF-45DC-90E3-343E12A2D739}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C924D58D-BB9B-49DB-9683-21995D8FF0AE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C924D58D-BB9B-49DB-9683-21995D8FF0AE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C924D58D-BB9B-49DB-9683-21995D8FF0AE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C924D58D-BB9B-49DB-9683-21995D8FF0AE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{BF8987ED-58D9-44DB-9C17-3D6B1E8BD416}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{BF8987ED-58D9-44DB-9C17-3D6B1E8BD416}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{BF8987ED-58D9-44DB-9C17-3D6B1E8BD416}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{BF8987ED-58D9-44DB-9C17-3D6B1E8BD416}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

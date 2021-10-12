@@ -148,12 +148,12 @@ namespace TextureTools
             GlfwProvider.GLFW.Value
                 .SetDropCallback((WindowHandle*)window.Handle, Window_FileDrop);
 
-            var imGuiFontConfig = new ImGuiFontConfig(Resource.simhei, 12);
+            var imGuiBinaryFontConfig = new ImGuiBinaryFontConfig(Resource.simhei, 12);
             controller = new ImGuiController(
                 GL = GL.GetApi(window),
                 window,
                 inputContext = window.CreateInput(),
-                imGuiFontConfig);
+                imGuiBinaryFontConfig);
 
             var io = ImGui.GetIO();
             io.NativePtr->IniFilename = null;
