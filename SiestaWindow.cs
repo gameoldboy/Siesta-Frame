@@ -161,7 +161,7 @@ namespace SiestaFrame
             var icon = Utilities.LoadIcon(AppResource.logo);
             Window.SetWindowIcon(ref icon);
 
-            var config = new ImGuiFontConfig("simhei.ttf", 12);
+            var config = new ImGuiFontConfig("SourceHanSansSC-Regular.otf", 18);
             Controller = new ImGuiController(
                 GraphicsAPI.GL = GL.GetApi(Window),
                 Window,

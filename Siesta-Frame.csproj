@@ -92,7 +92,7 @@
 			<Link>%(Filename)%(Extension)</Link>
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
-		<None Update="simhei.ttf">
+		<None Update="SourceHanSansSC-Regular.otf">
 			<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
 		</None>
 	</ItemGroup>

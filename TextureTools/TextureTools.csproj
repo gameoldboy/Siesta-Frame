@@ -23,7 +23,7 @@
 
 	<ItemGroup>
 		<EmbeddedResource Include="Shaders\**" />
-		<EmbeddedResource Include="simhei.ttf" />
+		<EmbeddedResource Include="..\simhei.ttf" />
 	</ItemGroup>
 
 	<ItemGroup>
