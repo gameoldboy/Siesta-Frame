@@ -73,9 +73,6 @@ namespace Silk.NET.OpenGL.Extensions.ImGui
             BeginFrame();
         }
 
-        /// <summary>
-        /// Constructs a new ImGuiController with font configuration.
-        /// </summary>
         public ImGuiController(GL gl, IView view, IInputContext input, ImGuiBinaryFontConfig imGuiBinaryFontConfig)
         {
             Init(gl, view, input);

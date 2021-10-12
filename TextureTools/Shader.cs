@@ -1,6 +1,7 @@
 ﻿using Silk.NET.OpenGL;
 using System;
 using System.IO;
+using System.Reflection;
 using System.Text;
 using Unity.Mathematics;
 
@@ -12,8 +13,19 @@ namespace TextureTools
 
         static Shader()
         {
-            var vert = Encoding.UTF8.GetString(Resource.vert);
-            var frag = Encoding.UTF8.GetString(Resource.frag);
+            var assembly = Assembly.GetExecutingAssembly();
+
+            string vert, frag;
+            using (Stream stream = assembly.GetManifestResourceStream("TextureTools.Shaders.vert.glsl"))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                vert = reader.ReadToEnd();
+            }
+            using (Stream stream = assembly.GetManifestResourceStream("TextureTools.Shaders.frag.glsl"))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                frag = reader.ReadToEnd();
+            }
             Default = new Shader(vert, frag);
         }
 

@@ -6,6 +6,11 @@
 		<LangVersion>preview</LangVersion>
 	</PropertyGroup>
 
+	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+		<DebugType>none</DebugType>
+		<DebugSymbols>false</DebugSymbols>
+	</PropertyGroup>
+
 	<ItemGroup>
 		<PackageReference Include="Silk.NET.Input.Extensions" Version="2.9.0" />
 		<PackageReference Include="Silk.NET.Input.Common" Version="2.9.0" />

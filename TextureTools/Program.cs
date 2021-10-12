@@ -10,6 +10,7 @@ using SixLabors.ImageSharp.PixelFormats;
 using SixLabors.ImageSharp.Processing;
 using System;
 using System.IO;
+using System.Reflection;
 using System.Runtime.InteropServices;
 using Unity.Mathematics;
 using GlfwProvider = Silk.NET.GLFW.GlfwProvider;
@@ -148,7 +149,14 @@ namespace TextureTools
             GlfwProvider.GLFW.Value
                 .SetDropCallback((WindowHandle*)window.Handle, Window_FileDrop);
 
-            var imGuiBinaryFontConfig = new ImGuiBinaryFontConfig(Resource.simhei, 12);
+            var assembly = Assembly.GetExecutingAssembly();
+
+            ImGuiBinaryFontConfig imGuiBinaryFontConfig;
+            using (Stream stream = assembly.GetManifestResourceStream("TextureTools.simhei.ttf"))
+            using (BinaryReader reader = new BinaryReader(stream))
+            {
+                imGuiBinaryFontConfig = new ImGuiBinaryFontConfig(reader.ReadBytes((int)stream.Length), 12);
+            }
             controller = new ImGuiController(
                 GL = GL.GetApi(window),
                 window,
@@ -208,8 +216,17 @@ namespace TextureTools
             GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, 0);
 
             checkerboard = new Texture(Path.Combine(workPath, "checkerboard.gobt"));
-            var vert = System.Text.Encoding.UTF8.GetString(Resource.vert);
-            var frag = System.Text.Encoding.UTF8.GetString(Resource.frag_checkerboard);
+            string vert, frag;
+            using (Stream stream = assembly.GetManifestResourceStream("TextureTools.Shaders.vert.glsl"))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                vert = reader.ReadToEnd();
+            }
+            using (Stream stream = assembly.GetManifestResourceStream("TextureTools.Shaders.frag_checkerboard.glsl"))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                frag = reader.ReadToEnd();
+            }
             checkerboardShader = new Shader(vert, frag);
 
             if (args.Length == 1)
