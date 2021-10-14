@@ -8,6 +8,7 @@ namespace SiestaFrame.Rendering
     public class TemporalAntiAliasing : IDisposable
     {
         uint historyMap;
+        uint[] mrtTarget;
 
         Shader shader;
 
@@ -50,6 +51,8 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapS, (int)GLEnum.ClampToEdge);
             GraphicsAPI.GL.TexParameter(TextureTarget.Texture2D, TextureParameterName.TextureWrapT, (int)GLEnum.ClampToEdge);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
+
+            mrtTarget = new uint[2];
         }
 
         public void PreTemporalAntiAliasing(Camera mainCamera)
@@ -94,7 +97,9 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.BindVertexArray(0);
             GraphicsAPI.GL.BindTexture(TextureTarget.Texture2D, 0);
             GraphicsAPI.GL.UseProgram(0);
-            postProcessing.Blit(App.Instance.MainWindow.TempColorAttachment, new uint[] { colorAttachment, historyMap }, width, height);
+            mrtTarget[0] = colorAttachment;
+            mrtTarget[1] = historyMap;
+            postProcessing.Blit(App.Instance.MainWindow.TempColorAttachment, mrtTarget, width, height);
         }
 
         struct HaltonSequence

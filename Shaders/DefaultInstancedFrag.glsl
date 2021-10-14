@@ -63,22 +63,22 @@ layout (location = 0) out vec4 FragColor;
 layout (location = 1) out vec4 NormalMap;
 layout (location = 2) out vec4 MotionVectors;
 
-vec2 poissonDisk[16] = vec2[]( 
-    vec2( -0.94201624, -0.39906216 ), 
-    vec2( 0.94558609, -0.76890725 ), 
-    vec2( -0.094184101, -0.92938870 ), 
-    vec2( 0.34495938, 0.29387760 ), 
-    vec2( -0.91588581, 0.45771432 ), 
-    vec2( -0.81544232, -0.87912464 ), 
-    vec2( -0.38277543, 0.27676845 ), 
-    vec2( 0.97484398, 0.75648379 ), 
-    vec2( 0.44323325, -0.97511554 ), 
-    vec2( 0.53742981, -0.47373420 ), 
-    vec2( -0.26496911, -0.41893023 ), 
-    vec2( 0.79197514, 0.19090188 ), 
-    vec2( -0.24188840, 0.99706507 ), 
-    vec2( -0.81409955, 0.91437590 ), 
-    vec2( 0.19984126, 0.78641367 ), 
+vec2 poissonDisk[16] = vec2[](
+    vec2( -0.94201624, -0.39906216 ),
+    vec2( 0.94558609, -0.76890725 ),
+    vec2( -0.094184101, -0.92938870 ),
+    vec2( 0.34495938, 0.29387760 ),
+    vec2( -0.91588581, 0.45771432 ),
+    vec2( -0.81544232, -0.87912464 ),
+    vec2( -0.38277543, 0.27676845 ),
+    vec2( 0.97484398, 0.75648379 ),
+    vec2( 0.44323325, -0.97511554 ),
+    vec2( 0.53742981, -0.47373420 ),
+    vec2( -0.26496911, -0.41893023 ),
+    vec2( 0.79197514, 0.19090188 ),
+    vec2( -0.24188840, 0.99706507 ),
+    vec2( -0.81409955, 0.91437590 ),
+    vec2( 0.19984126, 0.78641367 ),
     vec2( 0.14383161, -0.14100790 )
 );
 
@@ -94,19 +94,19 @@ float hash3D(vec3 input)
 
 #define PI 3.14159265358979323846
 
-float OrenNayar(vec3 lightDir, vec3 viewDir, vec3 normal, float roughness) {
-  float LdotV = dot(lightDir, viewDir);
-  float NdotL = dot(lightDir, normal);
-  float NdotV = dot(normal, viewDir);
+float OrenNayar(vec3 lightDir, vec3 viewDir, vec3 normal, float roughness, out float NdotL) {
+    float LdotV = dot(lightDir, viewDir);
+    NdotL = dot(lightDir, normal);
+    float NdotV = dot(normal, viewDir);
 
-  float s = LdotV - NdotL * NdotV;
-  float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
+    float s = LdotV - NdotL * NdotV;
+    float t = mix(1.0, max(NdotL, NdotV), step(0.0, s));
 
-  float sigma2 = roughness * roughness;
-  float A = 1.0 + sigma2 * (1.0 / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
-  float B = 0.45 * sigma2 / (sigma2 + 0.09);
+    float sigma2 = roughness * roughness;
+    float A = 1.0 + sigma2 * (1.0 / (sigma2 + 0.13) + 0.5 / (sigma2 + 0.33));
+    float B = 0.45 * sigma2 / (sigma2 + 0.09);
 
-  return max(0.0, NdotL) * (A + B * s / t) / PI;
+    return max(0.0, NdotL) * (A + B * s / t) / PI;
 }
 
 float DitherThresholds[64] = float[](
@@ -134,13 +134,13 @@ void main()
     vec3 matcap = texture(_MatCapMap, normalVS.xy).xyz;
 
     vec3 mainLightDir = normalize(_MainLightDir);
-    float NdotL = dot(normalWS, mainLightDir);
 
     vec3 viewDiffPosWS = _ViewPosWS - _PositionWS;
     vec3 viewDir = normalize(viewDiffPosWS);
     vec3 reflectDir = reflect(-mainLightDir, normalWS);
 
-    float diffuse = OrenNayar(mainLightDir, viewDir, normalWS, 0.5);
+    float NdotL;
+    float diffuse = OrenNayar(mainLightDir, viewDir, normalWS, 0.5, NdotL);
 
     float specular = pow(max(dot(viewDir, reflectDir), 0.0), 1.0 + 100.0 * _SpecularColor.w);
 
@@ -188,7 +188,7 @@ void main()
     }
     else if(_AlphaDither)
     {
-        ivec2 screenPos = ivec2(((_PositionCS.xy / _PositionCS.w) * 0.5 + 0.5) * _ScreenSize + ivec2(_Jitter * 16));
+        ivec2 screenPos = ivec2(((_PositionCS.xy / _PositionCS.w) * 0.5 + 0.5) * _ScreenSize) + ivec2(_Jitter * 16);
         int index = screenPos.x % 8 * 8 + screenPos.y % 8;
         if(alpha < DitherThresholds[index])
         {

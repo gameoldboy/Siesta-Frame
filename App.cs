@@ -67,6 +67,7 @@ namespace SiestaFrame
         GBuffer gBuffer;
         TemporalAntiAliasing temporalAntiAliasing;
         PostProcessing postProcessing;
+        uint[] mrtTarget;
 
         unsafe void onLoad()
         {
@@ -88,6 +89,7 @@ namespace SiestaFrame
             postProcessing = new PostProcessing();
             gBuffer = new GBuffer();
             temporalAntiAliasing = new TemporalAntiAliasing();
+            mrtTarget = new uint[3];
 
             SceneManager = new SceneManager();
             SceneManager.LoadScene(new Scene("Demo Scene"));
@@ -277,7 +279,10 @@ namespace SiestaFrame
 
             temporalAntiAliasing.PreTemporalAntiAliasing(scene.MainCamera);
 
-            MainWindow.BindFrameBuffer(new uint[] { MainWindow.ColorAttachment, gBuffer.NormalTexture, gBuffer.MotionVectors }, MainWindow.DepthAttachment);
+            mrtTarget[0] = MainWindow.ColorAttachment;
+            mrtTarget[1] = gBuffer.NormalTexture;
+            mrtTarget[2] = gBuffer.MotionVectors;
+            MainWindow.BindFrameBuffer(mrtTarget, MainWindow.DepthAttachment);
             GraphicsAPI.GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             GraphicsAPI.GL.Enable(EnableCap.DepthTest);
             GraphicsAPI.GL.Viewport(0, 0, MainWindow.Width, MainWindow.Height);

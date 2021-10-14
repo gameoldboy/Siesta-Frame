@@ -3,6 +3,7 @@
 	<PropertyGroup>
 		<OutputType>Exe</OutputType>
 		<TargetFramework>net5.0</TargetFramework>
+		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -14,6 +15,25 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\lib\Silk.NET.OpenGL.Extensions.ImGui\Silk.NET.OpenGL.Extensions.ImGui.csproj" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<EmbeddedResource Include="Shaders\**" />
+		<EmbeddedResource Include="..\simhei.ttf" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<RdXmlFile Include="..\rd.xml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Reference Include="Unity.Mathematics">
+			<HintPath>..\lib\Unity.Mathematics.dll</HintPath>
+		</Reference>
+	</ItemGroup>
+
+	<ItemGroup>
+		<None Remove="Shaders\**" />
 	</ItemGroup>
 
 </Project>

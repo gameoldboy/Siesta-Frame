@@ -1,7 +1,0 @@
-<Directives xmlns="http://schemas.microsoft.com/netfx/2013/01/metadata">
-    <Application>
-		<Assembly Name="SixLabors.ImageSharp">
-            <Type Name="SixLabors.ImageSharp.Metadata.Profiles.Exif.ExifDataType[]" Dynamic="Required All" />
-        </Assembly>
-    </Application>
-</Directives>

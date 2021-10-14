@@ -21,26 +21,40 @@ uniform vec2 _Jitter;
 
 out vec4 FragColor;
 
-float sRGB2Linear (float value)
+float sRGB2Linear (float sRGB)
 {
-    if (value <= 0.04045)
-        return value / 12.92;
-    else if (value < 1.0)
-        return pow((value + 0.055)/1.055, 2.4);
+    if (sRGB <= 0.04045)
+    {
+        return sRGB / 12.92;
+    }
+    else if (sRGB < 1.0)
+    {
+        return pow((sRGB + 0.055)/1.055, 2.4);
+    }
     else
-        return pow(value, 2.2);
+    {
+        return pow(sRGB, 2.2);
+    }
 }
 
-float Linear2sRGB (float value)
+float Linear2sRGB (float linear)
 {
-    if (value <= 0.0)
+    if (linear <= 0.0)
+    {
         return 0.0;
-    else if (value <= 0.0031308)
-        return 12.92 * value;
-    else if (value < 1.0)
-        return 1.055 * pow(value, 0.4166667) - 0.055;
+    }
+    else if (linear <= 0.0031308)
+    {
+        return 12.92 * linear;
+    }
+    else if (linear < 1.0)
+    {
+        return 1.055 * pow(linear, 0.4166667) - 0.055;
+    }
     else
-        return pow(value, 0.45454545);
+    {
+        return pow(linear, 0.45454545);
+    }
 }
 
 vec3 ACESFilm(vec3 x)

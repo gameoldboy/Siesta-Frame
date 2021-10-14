@@ -18,13 +18,13 @@ namespace SiestaFrame.Rendering
 
         public struct Vertex
         {
-            public float3 Position;
-            public float3 Normal;
-            public float4 Tangent;
-            public float4 TexCoords;
-            public float4 Color;
-            public uint4 BoneIds;
-            public float4 Weights;
+            public float3 position;
+            public float3 normal;
+            public float4 tangent;
+            public float4 texCoords;
+            public float4 color;
+            public uint4 boneIds;
+            public float4 weights;
         }
 
         [StructLayout(LayoutKind.Explicit)]
@@ -44,10 +44,23 @@ namespace SiestaFrame.Rendering
             [FieldOffset(176)] public float4x4 PrevModelMatrix;
         }
 
+        public struct BoundingBox
+        {
+            public float right;
+            public float left;
+            public float top;
+            public float bottom;
+            public float front;
+            public float back;
+            public float3 center;
+        }
+
         public Vertex[] Vertices { get; set; }
         public uint[] Indices { get; set; }
 
         public InstancedData[] InstancedBuffer { get; set; }
+
+        public BoundingBox AABB { get; private set; }
 
         public Mesh(Vertex[] vertices, uint[] indices)
         {
@@ -66,6 +79,8 @@ namespace SiestaFrame.Rendering
 
         public unsafe void Setup()
         {
+            CalculateAABB();
+
             VBO?.Dispose();
             EBO?.Dispose();
             VAO?.Dispose();
@@ -104,6 +119,32 @@ namespace SiestaFrame.Rendering
             instancedSSBO = new BufferObject<InstancedData>(BufferTargetARB.ShaderStorageBuffer);
         }
 
+        public void CalculateAABB()
+        {
+            BoundingBox aabb;
+            aabb.right = float.MinValue;
+            aabb.left = float.MaxValue;
+            aabb.top = float.MinValue;
+            aabb.bottom = float.MaxValue;
+            aabb.front = float.MinValue;
+            aabb.back = float.MaxValue;
+            for (int i = 0; i < Vertices.Length; i++)
+            {
+                var pos = Vertices[i].position;
+                aabb.right = math.max(aabb.right, pos.x);
+                aabb.left = math.min(aabb.left, pos.x);
+                aabb.top = math.max(aabb.top, pos.y);
+                aabb.bottom = math.min(aabb.bottom, pos.y);
+                aabb.front = math.max(aabb.front, pos.z);
+                aabb.back = math.min(aabb.back, pos.z);
+            }
+            aabb.center = new float3(
+                aabb.left + (aabb.right - aabb.left) / 2f,
+                aabb.bottom + (aabb.top - aabb.bottom) / 2f,
+                aabb.back + (aabb.front - aabb.back) / 2f);
+            AABB = aabb;
+        }
+
         public struct DrawData
         {
             public Mesh mesh;
@@ -118,7 +159,7 @@ namespace SiestaFrame.Rendering
             }
         }
 
-        void setShader(DrawData drawData, Scene.RenderingData renderingData,
+        void setShader(DrawData drawData, RenderingData renderingData,
             ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing, bool alphaHashed, bool alphaDither)
         {
             var material = drawData.material;
@@ -165,7 +206,7 @@ namespace SiestaFrame.Rendering
             material.Shader.SetMatrix(material.PrevMatrixProjectionLocation, renderingData.prevProjectionMatrix);
         }
 
-        public unsafe void Draw(DrawData drawData, Scene.RenderingData renderingData,
+        public unsafe void Draw(DrawData drawData, RenderingData renderingData,
             ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing)
         {
             if (drawData.clockwise)
@@ -211,7 +252,7 @@ namespace SiestaFrame.Rendering
             GraphicsAPI.GL.FrontFace(FrontFaceDirection.Ccw);
         }
 
-        public unsafe void DrawInstanced(DrawData drawData, Scene.RenderingData renderingData,
+        public unsafe void DrawInstanced(DrawData drawData, RenderingData renderingData,
             ShadowMap shadowMap, TemporalAntiAliasing temporalAntiAliasing, int amount)
         {
             var alphaHashed = false;

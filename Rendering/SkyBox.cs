@@ -152,7 +152,7 @@ namespace SiestaFrame.Rendering
             isCubeMap = false;
         }
 
-        public unsafe void Draw(Scene.RenderingData renderingData, float3 color, float angle)
+        public unsafe void Draw(RenderingData renderingData, float3 color, float angle)
         {
             var mesh = skybox.Meshes[0];
             mesh.VAO.Bind();

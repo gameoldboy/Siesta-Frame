@@ -54,7 +54,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<RdXmlFile Include="rd.xml" />
+		<RdXmlFile Include="..\rd.xml" />
 	</ItemGroup>
 
 </Project>

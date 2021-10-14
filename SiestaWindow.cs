@@ -168,8 +168,7 @@ namespace SiestaFrame
                 InputContext = Window.CreateInput(),
                 config
             );
-            var io = ImGui.GetIO();
-            io.NativePtr->IniFilename = null;
+            ImGui.GetIO().NativePtr->IniFilename = null;
 
             AllocRenderTexture();
 

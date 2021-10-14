@@ -2,7 +2,7 @@
 using Unity.Mathematics;
 using Random = Unity.Mathematics.Random;
 
-namespace SiestaFrame
+namespace ModelTools
 {
     public static class MathHelper
     {
@@ -40,16 +40,6 @@ namespace SiestaFrame
             }
         }
 
-        public static float4x4 ToFloat4x4(BulletSharp.Math.Matrix m)
-        {
-            return new float4x4(
-                m.M11, m.M21, m.M31, m.M41,
-                m.M12, m.M22, m.M32, m.M42,
-                m.M13, m.M23, m.M33, m.M43,
-                m.M14, m.M24, m.M34, m.M44
-            );
-        }
-
         public static System.Numerics.Matrix4x4 ToMatrix4x4(float4x4 m, MatrixOrder order = MatrixOrder.Column)
         {
             switch (order)
@@ -72,27 +62,6 @@ namespace SiestaFrame
             }
         }
 
-        public static BulletSharp.Math.Matrix ToMatrix(float4x4 m)
-        {
-            return new BulletSharp.Math.Matrix(
-                m.c0.x, m.c0.y, m.c0.z, m.c0.w,
-                m.c1.x, m.c1.y, m.c1.z, m.c1.w,
-                m.c2.x, m.c2.y, m.c2.z, m.c2.w,
-                m.c3.x, m.c3.y, m.c3.z, m.c3.w
-            );
-        }
-
-        public static BulletSharp.Math.Matrix ToMatrix(RigidTransform t)
-        {
-            var m = new float4x4(t);
-            return new BulletSharp.Math.Matrix(
-                m.c0.x, m.c0.y, m.c0.z, m.c0.w,
-                m.c1.x, m.c1.y, m.c1.z, m.c1.w,
-                m.c2.x, m.c2.y, m.c2.z, m.c2.w,
-                m.c3.x, m.c3.y, m.c3.z, m.c3.w
-            );
-        }
-
         public static float2 ToFloat2(System.Numerics.Vector2 vec)
         {
             return new float2(vec.X, vec.Y);
@@ -103,19 +72,9 @@ namespace SiestaFrame
             return new float3(vec.X, vec.Y, vec.Z);
         }
 
-        public static float3 ToFloat3(BulletSharp.Math.Vector3 vec)
-        {
-            return new float3(vec.X, vec.Y, vec.Z);
-        }
-
         public static float4 ToFloat4(System.Numerics.Vector4 vec)
         {
             return new float4(vec.X, vec.Y, vec.Z, vec.W);
-        }
-
-        public static BulletSharp.Math.Vector3 ToVector3(float3 vec)
-        {
-            return new BulletSharp.Math.Vector3(vec.x, vec.y, vec.z);
         }
 
         public static quaternion FromEuler(float x, float y, float z, math.RotationOrder order = math.RotationOrder.Default)

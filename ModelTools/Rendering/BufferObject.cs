@@ -1,7 +1,7 @@
 ﻿using Silk.NET.OpenGL;
 using System;
 
-namespace SiestaFrame.Rendering
+namespace ModelTools.Rendering
 {
     public class BufferObject<TDataType> : IDisposable
         where TDataType : unmanaged
@@ -12,35 +12,35 @@ namespace SiestaFrame.Rendering
         public BufferObject(BufferTargetARB bufferType)
         {
             _bufferType = bufferType;
-            _handle = GraphicsAPI.GL.GenBuffer();
+            _handle = Program.GL.GenBuffer();
         }
 
         public void Bind()
         {
-            GraphicsAPI.GL.BindBuffer(_bufferType, _handle);
+            Program.GL.BindBuffer(_bufferType, _handle);
         }
 
         public void BindBufferBase(uint index)
         {
-            GraphicsAPI.GL.BindBufferBase(_bufferType, index, _handle);
+            Program.GL.BindBufferBase(_bufferType, index, _handle);
         }
 
         public void BindBufferRange(uint index, int offset, uint size)
         {
-            GraphicsAPI.GL.BindBufferRange(_bufferType, index, _handle, offset, size);
+            Program.GL.BindBufferRange(_bufferType, index, _handle, offset, size);
         }
 
         public unsafe void BufferData(Span<TDataType> data, BufferUsageARB bufferUsage = BufferUsageARB.StaticDraw)
         {
             fixed (void* d = &data[0])
             {
-                GraphicsAPI.GL.BufferData(_bufferType, (nuint)(data.Length * sizeof(TDataType)), d, bufferUsage);
+                Program.GL.BufferData(_bufferType, (nuint)(data.Length * sizeof(TDataType)), d, bufferUsage);
             }
         }
 
-        public void Dispose()
+        public unsafe void Dispose()
         {
-            GraphicsAPI.GL.DeleteBuffer(_handle);
+            Program.GL.DeleteBuffer(_handle);
         }
     }
 }

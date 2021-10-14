@@ -26,7 +26,16 @@ namespace SiestaFrame
             {
                 modelPath = Path.Combine("Assets", "Models", path);
             }
-            var scene = assimp.ImportFile(modelPath, (uint)(PostProcessSteps.Triangulate | PostProcessSteps.GenerateNormals | PostProcessSteps.CalculateTangentSpace));
+            var scene = assimp.ImportFile(modelPath, (uint)(
+                PostProcessSteps.Triangulate |
+                PostProcessSteps.GenerateNormals |
+                PostProcessSteps.GenerateUVCoords |
+                PostProcessSteps.CalculateTangentSpace |
+                PostProcessSteps.JoinIdenticalVertices));
+            if (scene == null || (scene->MFlags == (uint)SceneFlags.Incomplete) || scene->MRootNode == null)
+            {
+                throw new Exception($"ERROR::ASSIMP::{assimp.GetErrorStringS()}");
+            }
 
             var Meshes = new List<Mesh>();
             var Materials = new List<Material>();
@@ -42,32 +51,32 @@ namespace SiestaFrame
                 for (int j = 0; j < mesh->MNumVertices; j++)
                 {
                     Mesh.Vertex vertex;
-                    vertex.Position = MathHelper.ToFloat3(mesh->MVertices[j]);
-                    vertex.Normal = MathHelper.ToFloat3(mesh->MNormals[j]);
+                    vertex.position = MathHelper.ToFloat3(mesh->MVertices[j]);
+                    vertex.normal = MathHelper.ToFloat3(mesh->MNormals[j]);
                     var tangent = MathHelper.ToFloat3(mesh->MTangents[j]);
                     var bitangent = MathHelper.ToFloat3(mesh->MBitangents[j]);
-                    var sign = math.sign(math.dot(math.cross(vertex.Normal, tangent), bitangent));
+                    var sign = math.sign(math.dot(math.cross(vertex.normal, tangent), bitangent));
                     sign = sign == 0 ? 1f : sign;
-                    vertex.Tangent = new float4(tangent, sign);
-                    var uv0 = Vector3.Zero;
-                    var uv1 = Vector3.Zero;
+                    vertex.tangent = new float4(tangent, sign);
+                    var uv0 = float2.zero;
+                    var uv1 = float2.zero;
                     if (mesh->MTextureCoords[0] != null)
                     {
-                        uv0 = mesh->MTextureCoords[0][j];
+                        uv0 = MathHelper.ToFloat3(mesh->MTextureCoords[0][j]).xy;
                     }
                     if (mesh->MTextureCoords[1] != null)
                     {
-                        uv1 = mesh->MTextureCoords[1][j];
+                        uv1 = MathHelper.ToFloat3(mesh->MTextureCoords[1][j]).xy;
                     }
-                    vertex.TexCoords = new float4(uv0.X, uv0.Y, uv1.X, uv1.Y);
-                    var color = Vector4.Zero;
+                    vertex.texCoords = new float4(uv0, uv1);
+                    var color = float4.zero;
                     if (mesh->MColors[0] != null)
                     {
-                        color = mesh->MColors[0][j];
+                        color = MathHelper.ToFloat4(mesh->MColors[0][j]);
                     }
-                    vertex.Color = MathHelper.ToFloat4(color);
-                    vertex.BoneIds = uint4.zero;
-                    vertex.Weights = float4.zero;
+                    vertex.color = color;
+                    vertex.boneIds = uint4.zero;
+                    vertex.weights = float4.zero;
                     vertices.Add(vertex);
                 }
                 // 面索引
@@ -86,30 +95,30 @@ namespace SiestaFrame
                 // 贴图
                 var sceneManager = SceneManager.Instance;
                 var material = new Material();
-                var aiMat = *scene->MMaterials[mesh->MMaterialIndex];
-                var texturePath = GetTexturePath(assimp, aiMat, TextureType.TextureTypeDiffuse, modelPath);
-                if (!string.IsNullOrWhiteSpace(texturePath))
+                var aiMat = scene->MMaterials[mesh->MMaterialIndex];
+                string texturePath;
+                if (GetTexturePath(aiMat, TextureType.TextureTypeDiffuse, assimp, modelPath, out texturePath))
                 {
                     material.BaseMap = sceneManager.AddTexture(texturePath);
                 }
-                texturePath = GetTexturePath(assimp, aiMat, TextureType.TextureTypeHeight, modelPath);
-                if (!string.IsNullOrWhiteSpace(texturePath))
+                if (GetTexturePath(aiMat, TextureType.TextureTypeHeight, assimp, modelPath, out texturePath))
                 {
                     material.NormalMap = sceneManager.AddTexture(texturePath);
                 }
-                texturePath = GetTexturePath(assimp, aiMat, TextureType.TextureTypeSpecular, modelPath);
-                if (!string.IsNullOrWhiteSpace(texturePath))
+                if (GetTexturePath(aiMat, TextureType.TextureTypeSpecular, assimp, modelPath, out texturePath))
                 {
                     material.SpecularMap = sceneManager.AddTexture(texturePath);
                 }
-                texturePath = GetTexturePath(assimp, aiMat, TextureType.TextureTypeEmissive, modelPath);
-                if (!string.IsNullOrWhiteSpace(texturePath))
+                if (GetTexturePath(aiMat, TextureType.TextureTypeEmissive, assimp, modelPath, out texturePath))
                 {
                     material.EmissiveMap = sceneManager.AddTexture(texturePath);
                 }
 
                 Materials.Add(material);
             }
+
+            assimp.FreeScene(scene);
+            assimp.Dispose();
 
             return new Entity()
             {
@@ -118,14 +127,13 @@ namespace SiestaFrame
             };
         }
 
-        static unsafe string GetTexturePath(Assimp assimp, Silk.NET.Assimp.Material material, TextureType textureType, string modelPath)
+        static unsafe bool GetTexturePath(Silk.NET.Assimp.Material* material, TextureType textureType, Assimp assimp, string modelPath, out string texturePath)
         {
             AssimpString assimpString = new AssimpString();
             var textureCount = assimp.GetMaterialTextureCount(material, textureType);
             if (textureCount > 0)
             {
-                assimp.GetMaterialTexture(in material, textureType, 0, ref assimpString, null, null, null, null, null, null);
-                string texturePath;
+                assimp.GetMaterialTexture(material, textureType, 0, ref assimpString, null, null, null, null, null, null);
                 if (Path.IsPathFullyQualified(assimpString.AsString))
                 {
                     texturePath = assimpString.AsString;
@@ -135,9 +143,10 @@ namespace SiestaFrame
                     texturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(modelPath)), assimpString.AsString);
                 }
                 Console.WriteLine($"texture:{texturePath}");
-                return texturePath;
+                return true;
             }
-            return null;
+            texturePath = null;
+            return false;
         }
     }
 }

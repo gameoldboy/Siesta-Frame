@@ -98,6 +98,9 @@ namespace TextureTools
             options.Size = new Vector2D<int>(768, 768);
             options.Title = "Siesta Texture Tools";
             options.WindowBorder = WindowBorder.Fixed;
+            options.PreferredBitDepth = new Vector4D<int>(8, 8, 8, 0);
+            options.PreferredDepthBufferBits = 0;
+            options.PreferredStencilBufferBits = 0;
             options.IsEventDriven = true;
             window = Window.Create(options);
             window.Load += Window_Load;
@@ -162,9 +165,8 @@ namespace TextureTools
                 window,
                 inputContext = window.CreateInput(),
                 imGuiBinaryFontConfig);
+            var io = ImGui.GetIO().NativePtr->IniFilename = null;
 
-            var io = ImGui.GetIO();
-            io.NativePtr->IniFilename = null;
             if (File.Exists(Path.Combine(workPath, "TextureTools.ini")))
             {
                 var iniLines = File.ReadAllLines(Path.Combine(workPath, "TextureTools.ini"));
@@ -302,7 +304,7 @@ namespace TextureTools
                 GL.BlendFunc(BlendingFactor.One, BlendingFactor.Zero);
             }
 
-            GUI(deltaTimef);
+            onGUI(deltaTimef);
             controller.Render();
         }
 
@@ -351,7 +353,7 @@ namespace TextureTools
             GL.UseProgram(0);
         }
 
-        static void GUI(float deltaTime)
+        static void onGUI(float deltaTime)
         {
             FrameTimer += deltaTime;
             FrameCount++;

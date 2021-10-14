@@ -73,7 +73,7 @@ namespace SiestaFrame.Physics
                 for (int j = 0; j < mesh.Vertices.Length; j++)
                 {
                     var vertex = mesh.Vertices[j];
-                    vertices[j] = new Vector3(vertex.Position.x, vertex.Position.y, vertex.Position.z);
+                    vertices[j] = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z);
                 }
                 var indexedMesh = new IndexedMesh();
                 indexedMesh.Allocate(indices.Length / 3, vertices.Length);
@@ -113,7 +113,7 @@ namespace SiestaFrame.Physics
                 for (int j = 0; j < mesh.Vertices.Length; j++)
                 {
                     var vertex = mesh.Vertices[j];
-                    vertices[j] = new Vector3(vertex.Position.x, vertex.Position.y, vertex.Position.z);
+                    vertices[j] = new Vector3(vertex.position.x, vertex.position.y, vertex.position.z);
                 }
                 var indexedMesh = new IndexedMesh();
                 indexedMesh.Allocate(indices.Length / 3, vertices.Length);
