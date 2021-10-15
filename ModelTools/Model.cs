@@ -1,10 +1,10 @@
-﻿using Silk.NET.Assimp;
+﻿using Assimp;
+using ModelTools.Animation;
 using System;
 using System.Collections.Generic;
 using System.IO;
-using System.Numerics;
-using System.Runtime.InteropServices;
 using Unity.Mathematics;
+using Bone = ModelTools.Animation.Bone;
 using Material = ModelTools.Rendering.Material;
 using Mesh = ModelTools.Rendering.Mesh;
 using Texture = ModelTools.Rendering.Texture;
@@ -14,48 +14,43 @@ namespace ModelTools
     public class Model : IDisposable
     {
         public Mesh[] Meshes { get; private set; }
+
         Dictionary<string, Texture> textures;
+
         public Material[] Materials { get; private set; }
-
-        public class Bone
-        {
-            public string name;
-            public float4x4 matrix;
-            public Bone parent;
-            public Bone[] children;
-
-            public float4x4 GetObjectSpaceMatrix()
-            {
-                var bone = this;
-                var m = matrix;
-                while (bone.parent != null)
-                {
-                    m = math.mul(bone.parent.matrix, m);
-                    bone = bone.parent;
-                }
-                return m;
-            }
-        }
 
         public Bone[] Bones { get; private set; }
 
-        public Bone SkeletonRoot { get; private set; }
+        public BoneRoot SkeletonRoot { get; private set; }
 
         public Mesh.BoundingBox AABB { get; private set; }
 
         public static unsafe Model Load(string path, float scale = 1f)
         {
-            var assimp = Assimp.GetApi();
-            var scene = assimp.ImportFile(path, (uint)(
-                PostProcessSteps.Triangulate |
-                PostProcessSteps.GenerateNormals |
-                PostProcessSteps.GenerateUVCoords |
-                PostProcessSteps.CalculateTangentSpace |
-                PostProcessSteps.JoinIdenticalVertices));
-            if (scene == null || (scene->MFlags == (uint)SceneFlags.Incomplete) || scene->MRootNode == null)
+            if (!File.Exists(path))
             {
-                Console.WriteLine($"ERROR::ASSIMP::{assimp.GetErrorStringS()}");
-                assimp.FreeScene(scene);
+                return null;
+            }
+            var stream = new FileStream(path, FileMode.Open);
+            var assimp = new AssimpContext();
+            Scene scene = null;
+            try
+            {
+                scene = assimp.ImportFileFromStream(stream,
+                   PostProcessSteps.Triangulate |
+                   PostProcessSteps.GenerateNormals |
+                   PostProcessSteps.GenerateUVCoords |
+                   PostProcessSteps.CalculateTangentSpace |
+                   PostProcessSteps.JoinIdenticalVertices |
+                   PostProcessSteps.ValidateDataStructure);
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine($"ERROR::ASSIMP::{e.Message}");
+            }
+            if (scene == null || (scene.SceneFlags == SceneFlags.Incomplete) || scene.RootNode == null)
+            {
+                Console.WriteLine("Scene empty or incomplete");
                 assimp.Dispose();
                 return null;
             }
@@ -67,14 +62,38 @@ namespace ModelTools
             var bones = new List<Bone>();
 
             Console.WriteLine("MetaData--------------------");
-            getMetaData(scene->MMetaData);
-            Console.WriteLine("Animations--------------------");
-            getAnimation(scene);
-            Console.WriteLine("Meshes--------------------");
-            model.processNode(scene->MRootNode, 0, null, scale, scene, assimp, path, meshes, materials, bones);
+            ShowMetaData(scene.Metadata);
 
-            assimp.FreeScene(scene);
+            Console.WriteLine("Animations--------------------");
+            if (scene.HasAnimations)
+            {
+                getAnimation(scene.Animations);
+            }
+            Console.WriteLine("Meshes--------------------");
+            var bone = new BoneRoot();
+            model.SkeletonRoot = bone;
+            bone.UnitScaleFactor = scale;
+            if (scene.Metadata.TryGetValue("UnitScaleFactor", out var entry))
+            {
+                bone.UnitScaleFactor *= Convert.ToSingle(entry.Data);
+            }
+            bone.name = scene.RootNode.Name;
+            bone.matrix = MathHelper.ToFloat4x4(scene.RootNode.Transform, MathHelper.MatrixOrder.Row);
+            if (scene.RootNode.HasChildren)
+            {
+                bone.children = new Bone[scene.RootNode.ChildCount];
+            }
+            else
+            {
+                bone.children = null;
+            }
+            for (int i = 0; i < scene.RootNode.ChildCount; i++)
+            {
+                model.processNode(scene.RootNode.Children[i], i, bone, scene, path, meshes, materials, bones);
+            }
+
             assimp.Dispose();
+            stream.Dispose();
 
             model.Meshes = meshes.ToArray();
             model.Materials = materials.ToArray();
@@ -84,76 +103,63 @@ namespace ModelTools
             return model;
         }
 
-        unsafe void processNode(Node* node, int index, Bone parent, float scale, Scene* scene, Assimp assimp, string modelPath, List<Mesh> meshes, List<Material> materials, List<Bone> bones)
+        unsafe void processNode(Node node, int index, Bone parent, Scene scene, string modelPath, List<Mesh> meshes, List<Material> materials, List<Bone> bones)
         {
-            Bone bone = new Bone();
-            bone.name = node->MName.AsString;
+            var bone = new Bone();
+            bone.name = node.Name;
             //Console.WriteLine(bone.name);
-            bone.matrix = MathHelper.ToFloat4x4(node->MTransformation, MathHelper.MatrixOrder.Row);
-            if (scale != 1f)
+            bone.matrix = MathHelper.ToFloat4x4(node.Transform, MathHelper.MatrixOrder.Row);
+            bone.parent = parent;
+            parent.children[index] = bone;
+            if (node.HasChildren)
             {
-                bone.matrix = math.mul(float4x4.Scale(scale), bone.matrix);
-            }
-
-            if (node->MNumChildren > 0)
-            {
-                bone.children = new Bone[node->MNumChildren];
+                bone.children = new Bone[node.ChildCount];
             }
             else
             {
                 bone.children = null;
             }
-            if (parent == null)
-            {
-                bone.parent = null;
-                SkeletonRoot = bone;
-            }
-            else
-            {
-                bone.parent = parent;
-                parent.children[index] = bone;
-            }
             // 递归骨骼
-            for (int i = 0; i < node->MNumChildren; i++)
+            for (int i = 0; i < node.ChildCount; i++)
             {
-                processNode(node->MChildren[i], i, bone, 1f, scene, assimp, modelPath, meshes, materials, bones);
+                processNode(node.Children[i], i, bone, scene, modelPath, meshes, materials, bones);
             }
 
             bones.Add(bone);
 
-            for (int i = 0; i < node->MNumMeshes; i++)
+            for (int i = 0; i < node.MeshCount; i++)
             {
-                var mesh = scene->MMeshes[node->MMeshes[i]];
+                var mesh = scene.Meshes[node.MeshIndices[i]];
 
                 List<Mesh.Vertex> vertices = new List<Mesh.Vertex>();
                 List<uint> indices = new List<uint>();
 
                 // 顶点
-                for (int j = 0; j < mesh->MNumVertices; j++)
+                for (int j = 0; j < mesh.VertexCount; j++)
                 {
                     Mesh.Vertex vertex;
-                    vertex.position = MathHelper.ToFloat3(mesh->MVertices[j]);
-                    vertex.normal = MathHelper.ToFloat3(mesh->MNormals[j]);
-                    var tangent = MathHelper.ToFloat3(mesh->MTangents[j]);
-                    var bitangent = MathHelper.ToFloat3(mesh->MBitangents[j]);
+                    vertex.position = MathHelper.ToFloat3(mesh.Vertices[j]);
+                    vertex.normal = MathHelper.ToFloat3(mesh.Normals[j]);
+                    var tangent = MathHelper.ToFloat3(mesh.Tangents[j]);
+                    var bitangent = MathHelper.ToFloat3(mesh.BiTangents[j]);
                     var sign = math.sign(math.dot(math.cross(vertex.normal, tangent), bitangent));
                     sign = sign == 0 ? 1f : sign;
                     vertex.tangent = new float4(tangent, sign);
                     var uv0 = float2.zero;
                     var uv1 = float2.zero;
-                    if (mesh->MTextureCoords[0] != null)
+                    if (mesh.HasTextureCoords(0))
                     {
-                        uv0 = MathHelper.ToFloat3(mesh->MTextureCoords[0][j]).xy;
+                        uv0 = MathHelper.ToFloat3(mesh.TextureCoordinateChannels[0][j]).xy;
                     }
-                    if (mesh->MTextureCoords[1] != null)
+                    if (mesh.HasTextureCoords(1))
                     {
-                        uv1 = MathHelper.ToFloat3(mesh->MTextureCoords[1][j]).xy;
+                        uv1 = MathHelper.ToFloat3(mesh.TextureCoordinateChannels[1][j]).xy;
                     }
                     vertex.texCoords = new float4(uv0, uv1);
                     var color = float4.zero;
-                    if (mesh->MColors[0] != null)
+                    if (mesh.HasVertexColors(0))
                     {
-                        color = MathHelper.ToFloat4(mesh->MColors[0][j]);
+                        color = MathHelper.ToFloat4(mesh.VertexColorChannels[0][j]);
                     }
                     vertex.color = color;
                     vertex.boneIds = uint4.zero;
@@ -161,26 +167,26 @@ namespace ModelTools
                     vertices.Add(vertex);
                 }
                 // 面索引
-                for (int j = 0; j < mesh->MNumFaces; j++)
+                for (int j = 0; j < mesh.FaceCount; j++)
                 {
-                    var face = mesh->MFaces[j];
-                    for (int k = 0; k < face.MNumIndices; k++)
+                    var face = mesh.Faces[j];
+                    for (int k = 0; k < face.IndexCount; k++)
                     {
-                        indices.Add(face.MIndices[k]);
+                        indices.Add((uint)face.Indices[k]);
                     }
                 }
 
                 meshes.Add(new Mesh(vertices.ToArray(), indices.ToArray(), bone));
-                Console.WriteLine($"name:{mesh->MName}, vertices:{vertices.Count}, indices:{indices.Count}");
+                Console.WriteLine($"name:{mesh.Name}, vertices:{vertices.Count}, indices:{indices.Count}");
 
                 // 贴图
                 var material = new Material();
-                var aiMat = scene->MMaterials[mesh->MMaterialIndex];
-                if (getTexturePath(aiMat, TextureType.TextureTypeDiffuse, assimp, modelPath, out var texturePath))
+                var aiMat = scene.Materials[mesh.MaterialIndex];
+                if (getTexturePath(aiMat, TextureType.Diffuse, modelPath, out var texturePath))
                 {
                     if (!textures.ContainsKey(texturePath))
                     {
-                        switch (Path.GetExtension(texturePath))
+                        switch (Path.GetExtension(texturePath).ToLower())
                         {
                             case ".gobt":
                                 textures.Add(texturePath, new Rendering.TextureGOB(texturePath));
@@ -197,104 +203,71 @@ namespace ModelTools
             }
         }
 
-        static unsafe void getMetaData(Metadata* metaData)
+        static unsafe void ShowMetaData(Metadata metaData)
         {
             if (metaData == null)
             {
                 return;
             }
-            for (int i = 0; i < metaData->MNumProperties; i++)
+            foreach (var key in metaData.Keys)
             {
-                var metadataEntry = metaData->MValues[i];
-                switch (metadataEntry.MType)
+                var entry = metaData[key];
+                switch (entry.DataType)
                 {
-                    case MetadataType.Bool:
-                        using (var stream = new UnmanagedMemoryStream((byte*)metadataEntry.MData, 1))
-                        using (var reader = new BinaryReader(stream))
-                        {
-                            Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{reader.ReadBoolean()}");
-                        }
+                    case MetaDataType.Bool:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(bool)entry.Data}");
                         break;
-                    case MetadataType.Int32:
-                        using (var stream = new UnmanagedMemoryStream((byte*)metadataEntry.MData, 4))
-                        using (var reader = new BinaryReader(stream))
-                        {
-                            Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{reader.ReadInt32()}");
-                        }
+                    case MetaDataType.Int32:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(int)entry.Data}");
                         break;
-                    case MetadataType.Uint64:
-                        using (var stream = new UnmanagedMemoryStream((byte*)metadataEntry.MData, 8))
-                        using (var reader = new BinaryReader(stream))
-                        {
-                            Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{reader.ReadUInt64()}");
-                        }
+                    case MetaDataType.UInt64:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(ulong)entry.Data}");
                         break;
-                    case MetadataType.Float:
-                        using (var stream = new UnmanagedMemoryStream((byte*)metadataEntry.MData, 4))
-                        using (var reader = new BinaryReader(stream))
-                        {
-                            Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{reader.ReadSingle()}");
-                        }
+                    case MetaDataType.Float:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(float)entry.Data}");
                         break;
-                    case MetadataType.Double:
-                        using (var stream = new UnmanagedMemoryStream((byte*)metadataEntry.MData, 8))
-                        using (var reader = new BinaryReader(stream))
-                        {
-                            Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{reader.ReadDouble()}");
-                        }
+                    case MetaDataType.Double:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(double)entry.Data}");
                         break;
-                    case MetadataType.Aistring:
-                        Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{Marshal.PtrToStringUTF8((IntPtr)metadataEntry.MData)}");
+                    case MetaDataType.String:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(string)entry.Data}");
                         break;
-                    case MetadataType.Aivector3D:
-                        using (var stream = new UnmanagedMemoryStream((byte*)metadataEntry.MData, 12))
-                        using (var reader = new BinaryReader(stream))
-                        {
-                            var x = reader.ReadSingle();
-                            var y = reader.ReadSingle();
-                            var z = reader.ReadSingle();
-                            Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:{x},{y},{z}");
-                        }
-                        break;
-                    case MetadataType.MetaMax:
-                        Console.WriteLine($"{metaData->MKeys[i].AsString}:{metadataEntry.MType}:not support");
+                    case MetaDataType.Vector3D:
+                        Console.WriteLine($"{key}:{entry.DataType}:{(Vector3D)entry.Data}");
                         break;
                 }
             }
         }
 
-        static unsafe void getAnimation(Scene* scene)
+        static unsafe void getAnimation(List<Assimp.Animation> animations)
         {
-            for (int i = 0; i < scene->MNumAnimations; i++)
+            for (int i = 0; i < animations.Count; i++)
             {
-                var animation = scene->MAnimations[i];
-                Console.WriteLine(animation->MName.AsString);
+                var animation = animations[i];
+                Console.WriteLine(animation.Name);
 
-                for (int j = 0; j < animation->MNumChannels; j++)
+                for (int j = 0; j < animation.NodeAnimationChannelCount; j++)
                 {
-                    var channel = animation->MChannels[i];
-                    //Console.WriteLine(channel->MNodeName.AsString);
+                    var channel = animation.NodeAnimationChannels[i];
+                    Console.WriteLine(channel.NodeName);
                 }
             }
         }
 
-        static unsafe bool getTexturePath(Silk.NET.Assimp.Material* material, TextureType textureType, Assimp assimp, string modelPath, out string texturePath)
+        static unsafe bool getTexturePath(Assimp.Material material, TextureType textureType, string modelPath, out string texturePath)
         {
-            AssimpString assimpString = new AssimpString();
-            var textureCount = assimp.GetMaterialTextureCount(material, textureType);
-            if (textureCount > 0)
+            if (material.GetMaterialTexture(textureType, 0, out var textureSlot))
             {
-                assimp.GetMaterialTexture(material, textureType, 0, ref assimpString, null, null, null, null, null, null);
-                if (Path.IsPathFullyQualified(assimpString.AsString))
+                if (Path.IsPathFullyQualified(textureSlot.FilePath))
                 {
-                    texturePath = assimpString.AsString;
+                    texturePath = textureSlot.FilePath;
                 }
                 else
                 {
-                    texturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(modelPath)), assimpString.AsString);
+                    texturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(modelPath)), textureSlot.FilePath);
                 }
                 Console.WriteLine($"texture:{texturePath}");
-                return System.IO.File.Exists(texturePath);
+                return File.Exists(texturePath);
             }
             texturePath = null;
             return false;
@@ -311,7 +284,7 @@ namespace ModelTools
             aabb.back = float.MaxValue;
             for (int i = 0; i < Bones.Length; i++)
             {
-                var pos = math.mul(Bones[i].GetObjectSpaceMatrix(), new float4(0, 0, 0, 1f));
+                var pos = math.mul(Bones[i].CalculateObjectSpaceMatrix(), new float4(0, 0, 0, 1f));
                 aabb.right = math.max(aabb.right, pos.x);
                 aabb.left = math.min(aabb.left, pos.x);
                 aabb.top = math.max(aabb.top, pos.y);
@@ -321,6 +294,7 @@ namespace ModelTools
             }
             for (int i = 0; i < Meshes.Length; i++)
             {
+                Meshes[i].CalculateAABB();
                 var meshAABB = Meshes[i].AABB;
                 aabb.right = math.max(aabb.right, meshAABB.right);
                 aabb.left = math.min(aabb.left, meshAABB.left);
@@ -334,6 +308,8 @@ namespace ModelTools
                 aabb.bottom + (aabb.top - aabb.bottom) / 2f,
                 aabb.back + (aabb.front - aabb.back) / 2f);
             AABB = aabb;
+
+            Console.WriteLine($"AABB:{AABB}");
         }
 
         public void Dispose()

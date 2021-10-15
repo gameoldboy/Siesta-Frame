@@ -40,6 +40,28 @@ namespace ModelTools
             }
         }
 
+        public static float4x4 ToFloat4x4(Assimp.Matrix4x4 m, MatrixOrder order = MatrixOrder.Column)
+        {
+            switch (order)
+            {
+                default:
+                case MatrixOrder.Column:
+                    return new float4x4(
+                        m.A1, m.B1, m.C1, m.D1,
+                        m.A2, m.B2, m.C2, m.D2,
+                        m.A3, m.B3, m.C3, m.D3,
+                        m.A4, m.B4, m.C4, m.D4
+                    );
+                case MatrixOrder.Row:
+                    return new float4x4(
+                        m.A1, m.A2, m.A3, m.A4,
+                        m.B1, m.B2, m.B3, m.B4,
+                        m.C1, m.C2, m.C3, m.C4,
+                        m.D1, m.D2, m.D3, m.D4
+                    );
+            }
+        }
+
         public static System.Numerics.Matrix4x4 ToMatrix4x4(float4x4 m, MatrixOrder order = MatrixOrder.Column)
         {
             switch (order)
@@ -72,9 +94,19 @@ namespace ModelTools
             return new float3(vec.X, vec.Y, vec.Z);
         }
 
+        public static float3 ToFloat3(Assimp.Vector3D vec)
+        {
+            return new float3(vec.X, vec.Y, vec.Z);
+        }
+
         public static float4 ToFloat4(System.Numerics.Vector4 vec)
         {
             return new float4(vec.X, vec.Y, vec.Z, vec.W);
+        }
+
+        public static float4 ToFloat4(Assimp.Color4D color)
+        {
+            return new float4(color.R, color.G, color.B, color.A);
         }
 
         public static quaternion FromEuler(float x, float y, float z, math.RotationOrder order = math.RotationOrder.Default)

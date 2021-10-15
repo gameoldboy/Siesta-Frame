@@ -30,39 +30,41 @@ namespace ModelTools
             public int lStructSize;
             public IntPtr hwndOwner;
             public IntPtr hInstance;
-            public string lpstrFilter;
-            public string lpstrCustomFilter;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrFilter;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrCustomFilter;
             public int nMaxCustFilter;
             public int nFilterIndex;
-            public string lpstrFile;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrFile;
             public int nMaxFile;
-            public string lpstrFileTitle;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrFileTitle;
             public int nMaxFileTitle;
-            public string lpstrInitialDir;
-            public string lpstrTitle;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrInitialDir;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrTitle;
             public int Flags;
             public short nFileOffset;
             public short nFileExtension;
-            public string lpstrDefExt;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpstrDefExt;
             public IntPtr lCustData;
             public IntPtr lpfnHook;
-            public string lpTemplateName;
+            [MarshalAs(UnmanagedType.LPWStr)] public string lpTemplateName;
             public IntPtr pvReserved;
             public int dwReserved;
             public int FlagsEx;
         }
 
         [DllImport("comdlg32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern bool GetOpenFileNameA(ref OPENFILENAME ofn);
+        static extern bool GetOpenFileNameW(ref OPENFILENAME ofn);
 
         [DllImport("Comdlg32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        static extern bool GetSaveFileNameA(ref OPENFILENAME lpofn);
+        static extern bool GetSaveFileNameW(ref OPENFILENAME lpofn);
 
         [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-        static extern int MessageBox(IntPtr hWnd, string text, string caption, uint type);
+        static extern int MessageBoxW(IntPtr hWnd, [MarshalAs(UnmanagedType.LPWStr)] string text, [MarshalAs(UnmanagedType.LPWStr)] string caption, uint type);
 
         static void Main(string[] args)
         {
+            Console.OutputEncoding = System.Text.Encoding.Unicode;
+
             Silk.NET.Input.Glfw.GlfwInput.RegisterPlatform();
             Silk.NET.Input.Sdl.SdlInput.RegisterPlatform();
 
@@ -70,7 +72,7 @@ namespace ModelTools
             options.Size = new Vector2D<int>(800, 600);
             options.Title = "Siesta Model Tools";
             options.PreferredBitDepth = new Vector4D<int>(8, 8, 8, 0);
-            options.PreferredDepthBufferBits = 24;
+            options.PreferredDepthBufferBits = 32;
             options.PreferredStencilBufferBits = 0;
             options.IsEventDriven = true;
             window = Window.Create(options);
@@ -111,7 +113,7 @@ namespace ModelTools
             ImGui.GetIO().NativePtr->IniFilename = null;
             foreach (var keyboard in inputContext.Keyboards)
             {
-                keyboard.KeyDown += Keyboard_KeyDown; ;
+                keyboard.KeyDown += Keyboard_KeyDown;
             }
             foreach (var mouese in inputContext.Mice)
             {
@@ -204,6 +206,13 @@ namespace ModelTools
                         new float2(-mouseDelta.x, mouseDelta.y) / new float2(window.Size.X, window.Size.Y) * 2f, 0, 0f)).xyz;
                     cameraPosOffset += delta * cameraDistance;
                 }
+                if (mouseRB)
+                {
+                    var forward = mouseDelta.y / window.Size.Y * cameraDistance;
+                    cameraDistance += forward;
+                    cameraPos = model.AABB.center;
+                    cameraPos += (-cameraForward) * cameraDistance;
+                }
             }
         }
 
@@ -211,9 +220,11 @@ namespace ModelTools
         {
             cameraFOV = 45f;
             float fovRad = 0.5f * cameraFOV * MathHelper.Deg2Rad;
+            float halfWidth = (model.AABB.right - model.AABB.left) * 0.5f;
             float halfHight = (model.AABB.top - model.AABB.bottom) * 0.5f;
             float halfLength = (model.AABB.front - model.AABB.back) * 0.5f;
-            cameraDistance = math.cos(fovRad) * halfHight / math.sin(fovRad) + halfLength;
+            float longest = math.max(halfWidth, halfHight);
+            cameraDistance = math.cos(fovRad) * longest / math.sin(fovRad) + halfLength;
             cameraPos = model.AABB.center;
             cameraPosOffset = float3.zero;
             cameraYaw = 180f;
@@ -240,7 +251,8 @@ namespace ModelTools
                 var farClip = math.max(math.max(
                     model.AABB.right - model.AABB.left,
                     model.AABB.top - model.AABB.bottom),
-                    model.AABB.front - model.AABB.back) + cameraDistance;
+                    model.AABB.front - model.AABB.back) * 0.5f + cameraDistance;
+                //Console.WriteLine($"cameraDistance:{cameraDistance}, farClip:{farClip}");
                 renderingData.projectionMatrix =
                     MathHelper.PerspectiveFov(cameraFOV * MathHelper.Deg2Rad,
                     (uint)window.Size.X, (uint)window.Size.Y, 0.0001f, farClip);
@@ -269,8 +281,8 @@ namespace ModelTools
                         {
                             continue;
                         }
-                        var pos = math.mul(bone.GetObjectSpaceMatrix(), new float4(0, 0, 0, 1f)).xyz;
-                        var posParent = math.mul(bone.parent.GetObjectSpaceMatrix(), new float4(0, 0, 0, 1f)).xyz;
+                        var pos = math.mul(bone.CalculateObjectSpaceMatrix(), new float4(0, 0, 0, 1f)).xyz;
+                        var posParent = math.mul(bone.parent.CalculateObjectSpaceMatrix(), new float4(0, 0, 0, 1f)).xyz;
                         bonesVertices.Add(pos);
                         bonesVertices.Add(posParent);
                     }
@@ -332,6 +344,7 @@ namespace ModelTools
         static bool mouseLB;
         static bool mouseMB;
         static bool mouseRB;
+        static bool altKey;
 
         static void onGUI(float dt)
         {
@@ -342,6 +355,7 @@ namespace ModelTools
             var isMouseLBDown = ImGui.IsMouseDown(ImGuiMouseButton.Left);
             var isMouseMBDown = ImGui.IsMouseDown(ImGuiMouseButton.Middle);
             var isMouseRBDown = ImGui.IsMouseDown(ImGuiMouseButton.Right);
+            var isAltKeyDown = ImGui.IsKeyDown((int)Key.AltLeft);
             if (mouseLB != isMouseLBDown)
             {
                 if (isMouseLBDown)
@@ -378,6 +392,10 @@ namespace ModelTools
                 }
                 mouseRB = isMouseRBDown;
             }
+            if (altKey != isAltKeyDown)
+            {
+                altKey = isAltKeyDown;
+            }
 
             ImGui.Begin("Tools");
             if (ImGui.Button("Open"))
@@ -390,31 +408,50 @@ namespace ModelTools
                 ofn.nMaxFile = ofn.lpstrFile.Length;
                 ofn.lpstrFileTitle = new string(new char[64]);
                 ofn.nMaxFileTitle = ofn.lpstrFileTitle.Length;
-                if (GetOpenFileNameA(ref ofn))
+                if (GetOpenFileNameW(ref ofn))
                 {
                     var modelPath = ofn.lpstrFile;
                     if (!string.IsNullOrWhiteSpace(modelPath))
                     {
                         Console.WriteLine($"Open:{modelPath}");
                         model?.Dispose();
-                        switch (Path.GetExtension(modelPath))
-                        {
-                            case ".fbx":
-                                model = Model.Load(modelPath, 0.01f);
-                                break;
-                            default:
-                                model = Model.Load(modelPath);
-                                break;
-                        }
-                        if (model != null)
-                        {
-                            ResetCamera();
-                        }
+                        load(modelPath);
                     }
                 }
             }
+            if (model != null)
+            {
+                var scale = model.SkeletonRoot.UnitScaleFactor;
+                if (ImGui.DragFloat("Unit Scale Factor", ref scale))
+                {
+                    model.SkeletonRoot.UnitScaleFactor = math.max(0, scale);
+                    model.CalculateAABB();
+                }
+            }
+            else
+            {
+                float v = float.NegativeInfinity;
+                ImGui.DragFloat("Unit Scale Factor", ref v);
+            }
             ImGui.Checkbox("View Skeleton", ref viewBones);
             ImGui.End();
+        }
+
+        static void load(string path)
+        {
+            switch (Path.GetExtension(path).ToLower())
+            {
+                case ".fbx":
+                    model = Model.Load(path, 0.01f);
+                    break;
+                default:
+                    model = Model.Load(path);
+                    break;
+            }
+            if (model != null)
+            {
+                ResetCamera();
+            }
         }
 
         static void Window_FramebufferResize(Vector2D<int> size)
@@ -436,9 +473,11 @@ namespace ModelTools
             }
             if (arrayOfPaths.Length > 1)
             {
+                return;
             }
             else
             {
+                load(arrayOfPaths[0]);
             }
         }
 

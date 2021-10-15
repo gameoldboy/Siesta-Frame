@@ -1,4 +1,5 @@
-﻿using Silk.NET.OpenGL;
+﻿using ModelTools.Animation;
+using Silk.NET.OpenGL;
 using System;
 using Unity.Mathematics;
 
@@ -26,15 +27,23 @@ namespace ModelTools.Rendering
             public float front;
             public float back;
             public float3 center;
+
+            public override string ToString()
+            {
+                return $"right:{right}, left:{left}, " +
+                       $"top:{top}, bottom:{bottom}, " +
+                       $"front:{front}, back:{back}, " +
+                       $"center:{center}";
+            }
         }
 
         public Vertex[] Vertices { get; private set; }
         public uint[] Indices { get; private set; }
-        public Model.Bone LinkedBone { get; private set; }
+        public Bone LinkedBone { get; private set; }
 
         public BoundingBox AABB { get; private set; }
 
-        public Mesh(Vertex[] vertices, uint[] indices, Model.Bone bone)
+        public Mesh(Vertex[] vertices, uint[] indices, Bone bone)
         {
             Indices = indices;
             Vertices = vertices;
@@ -49,8 +58,6 @@ namespace ModelTools.Rendering
 
         public unsafe void Setup()
         {
-            CalculateAABB();
-
             VBO?.Dispose();
             EBO?.Dispose();
             VAO?.Dispose();
@@ -97,7 +104,7 @@ namespace ModelTools.Rendering
             aabb.back = float.MaxValue;
             for (int i = 0; i < Vertices.Length; i++)
             {
-                var pos = math.mul(LinkedBone.GetObjectSpaceMatrix(), new float4(Vertices[i].position, 1f));
+                var pos = math.mul(LinkedBone.CalculateObjectSpaceMatrix(), new float4(Vertices[i].position, 1f));
                 aabb.right = math.max(aabb.right, pos.x);
                 aabb.left = math.min(aabb.left, pos.x);
                 aabb.top = math.max(aabb.top, pos.y);
@@ -121,7 +128,7 @@ namespace ModelTools.Rendering
         void setShader(DrawData drawData, RenderingData renderingData, bool alphaDither)
         {
             var material = drawData.material;
-            material.Shader.SetMatrix(material.MatrixModelLocation, math.mul(drawData.modelMatrix, LinkedBone.GetObjectSpaceMatrix()));
+            material.Shader.SetMatrix(material.MatrixModelLocation, math.mul(drawData.modelMatrix, LinkedBone.CalculateObjectSpaceMatrix()));
             material.Shader.SetMatrix(material.MatrixViewLocation, renderingData.viewMatrix);
             material.Shader.SetMatrix(material.MatrixProjectionLocation, renderingData.projectionMatrix);
             material.Shader.SetVector(material.BaseColorLocation, material.BaseColor);
