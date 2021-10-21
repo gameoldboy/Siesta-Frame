@@ -1,5 +1,8 @@
 ﻿using Assimp;
+using Assimp.Configs;
 using ModelTools.Animation;
+using ModelTools.Rendering;
+using Silk.NET.OpenGL;
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -23,32 +26,41 @@ namespace ModelTools
 
         public BoneRoot SkeletonRoot { get; private set; }
 
+        public Animation.Animation[] Animations { get; private set; }
+
         public Mesh.BoundingBox AABB { get; private set; }
 
-        public static unsafe Model Load(string path, float scale = 1f)
+        public static Model Load(string path, string format, float scale = 1f)
         {
             if (!File.Exists(path))
             {
                 return null;
             }
-            var stream = new FileStream(path, FileMode.Open);
             var assimp = new AssimpContext();
             Scene scene = null;
             try
             {
-                scene = assimp.ImportFileFromStream(stream,
-                   PostProcessSteps.Triangulate |
-                   PostProcessSteps.GenerateNormals |
-                   PostProcessSteps.GenerateUVCoords |
-                   PostProcessSteps.CalculateTangentSpace |
-                   PostProcessSteps.JoinIdenticalVertices |
-                   PostProcessSteps.ValidateDataStructure);
+                var vertexBoneWeightLimitConfig = new VertexBoneWeightLimitConfig(4);
+                assimp.SetConfig(vertexBoneWeightLimitConfig);
+                var postProcessSteps =
+                    PostProcessSteps.Triangulate |
+                    PostProcessSteps.GenerateNormals |
+                    PostProcessSteps.CalculateTangentSpace |
+                    PostProcessSteps.LimitBoneWeights |
+                    PostProcessSteps.JoinIdenticalVertices |
+                    PostProcessSteps.ValidateDataStructure;
+                using (var stream = new FileStream(path, FileMode.Open))
+                {
+                    scene = assimp.ImportFileFromStream(stream, postProcessSteps, format);
+                }
             }
             catch (Exception e)
             {
                 Console.WriteLine($"ERROR::ASSIMP::{e.Message}");
+                return null;
             }
-            if (scene == null || (scene.SceneFlags == SceneFlags.Incomplete) || scene.RootNode == null)
+            Console.WriteLine((uint)scene.SceneFlags);
+            if (scene == null || scene.RootNode == null)
             {
                 Console.WriteLine("Scene empty or incomplete");
                 assimp.Dispose();
@@ -64,61 +76,45 @@ namespace ModelTools
             Console.WriteLine("MetaData--------------------");
             ShowMetaData(scene.Metadata);
 
-            Console.WriteLine("Animations--------------------");
-            if (scene.HasAnimations)
-            {
-                getAnimation(scene.Animations);
-            }
             Console.WriteLine("Meshes--------------------");
-            var bone = new BoneRoot();
-            model.SkeletonRoot = bone;
-            bone.UnitScaleFactor = scale;
+            model.SkeletonRoot = new BoneRoot();
+            model.SkeletonRoot.UnitScaleFactor = scale;
             if (scene.Metadata.TryGetValue("UnitScaleFactor", out var entry))
             {
-                bone.UnitScaleFactor *= Convert.ToSingle(entry.Data);
+                model.SkeletonRoot.UnitScaleFactor *= Convert.ToSingle(entry.Data);
             }
-            bone.name = scene.RootNode.Name;
-            bone.matrix = MathHelper.ToFloat4x4(scene.RootNode.Transform, MathHelper.MatrixOrder.Row);
-            if (scene.RootNode.HasChildren)
-            {
-                bone.children = new Bone[scene.RootNode.ChildCount];
-            }
-            else
-            {
-                bone.children = null;
-            }
+            model.SkeletonRoot.name = scene.RootNode.Name;
+            model.SkeletonRoot.offset = float4x4.identity;
+            model.SkeletonRoot.matrix = MathHelper.ToFloat4x4(scene.RootNode.Transform, MathHelper.MatrixOrder.Row);
+            model.SkeletonRoot.children = new Bone[scene.RootNode.ChildCount];
             for (int i = 0; i < scene.RootNode.ChildCount; i++)
             {
-                model.processNode(scene.RootNode.Children[i], i, bone, scene, path, meshes, materials, bones);
+                model.processNode(scene.RootNode.Children[i], i, model.SkeletonRoot, scene, path, meshes, materials, bones);
             }
-
-            assimp.Dispose();
-            stream.Dispose();
-
             model.Meshes = meshes.ToArray();
             model.Materials = materials.ToArray();
             model.Bones = bones.ToArray();
             model.CalculateAABB();
 
+            Console.WriteLine("Animations--------------------");
+            model.getVertexWeights(scene);
+            model.getAnimation(scene);
+
+            assimp.Dispose();
+
             return model;
         }
 
-        unsafe void processNode(Node node, int index, Bone parent, Scene scene, string modelPath, List<Mesh> meshes, List<Material> materials, List<Bone> bones)
+        void processNode(Node node, int index, Bone parent, Scene scene, string modelPath, List<Mesh> meshes, List<Material> materials, List<Bone> bones)
         {
             var bone = new Bone();
             bone.name = node.Name;
             //Console.WriteLine(bone.name);
+            bone.offset = float4x4.identity;
             bone.matrix = MathHelper.ToFloat4x4(node.Transform, MathHelper.MatrixOrder.Row);
             bone.parent = parent;
             parent.children[index] = bone;
-            if (node.HasChildren)
-            {
-                bone.children = new Bone[node.ChildCount];
-            }
-            else
-            {
-                bone.children = null;
-            }
+            bone.children = new Bone[node.ChildCount];
             // 递归骨骼
             for (int i = 0; i < node.ChildCount; i++)
             {
@@ -145,12 +141,8 @@ namespace ModelTools
                     var sign = math.sign(math.dot(math.cross(vertex.normal, tangent), bitangent));
                     sign = sign == 0 ? 1f : sign;
                     vertex.tangent = new float4(tangent, sign);
-                    var uv0 = float2.zero;
+                    var uv0 = MathHelper.ToFloat3(mesh.TextureCoordinateChannels[0][j]).xy;
                     var uv1 = float2.zero;
-                    if (mesh.HasTextureCoords(0))
-                    {
-                        uv0 = MathHelper.ToFloat3(mesh.TextureCoordinateChannels[0][j]).xy;
-                    }
                     if (mesh.HasTextureCoords(1))
                     {
                         uv1 = MathHelper.ToFloat3(mesh.TextureCoordinateChannels[1][j]).xy;
@@ -203,7 +195,26 @@ namespace ModelTools
             }
         }
 
-        static unsafe void ShowMetaData(Metadata metaData)
+        static bool getTexturePath(Assimp.Material material, TextureType textureType, string modelPath, out string texturePath)
+        {
+            if (material.GetMaterialTexture(textureType, 0, out var textureSlot))
+            {
+                if (Path.IsPathFullyQualified(textureSlot.FilePath))
+                {
+                    texturePath = textureSlot.FilePath;
+                }
+                else
+                {
+                    texturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(modelPath)), textureSlot.FilePath);
+                }
+                Console.WriteLine($"texture:{texturePath}");
+                return File.Exists(texturePath);
+            }
+            texturePath = null;
+            return false;
+        }
+
+        static void ShowMetaData(Metadata metaData)
         {
             if (metaData == null)
             {
@@ -239,38 +250,144 @@ namespace ModelTools
             }
         }
 
-        static unsafe void getAnimation(List<Assimp.Animation> animations)
+        void getVertexWeights(Scene scene)
         {
-            for (int i = 0; i < animations.Count; i++)
+            for (int i = 0; i < scene.MeshCount; i++)
             {
-                var animation = animations[i];
-                Console.WriteLine(animation.Name);
-
-                for (int j = 0; j < animation.NodeAnimationChannelCount; j++)
+                var mesh = scene.Meshes[i];
+                for (int j = 0; j < mesh.BoneCount; j++)
                 {
-                    var channel = animation.NodeAnimationChannels[i];
-                    Console.WriteLine(channel.NodeName);
+                    var aiBone = mesh.Bones[j];
+                    for (uint k = 0; k < Bones.Length; k++)
+                    {
+                        if (Bones[k].name == aiBone.Name)
+                        {
+                            Bones[k].offset = MathHelper.ToFloat4x4(aiBone.OffsetMatrix, MathHelper.MatrixOrder.Row);
+                            for (int l = 0; l < aiBone.VertexWeightCount; l++)
+                            {
+                                var weight = aiBone.VertexWeights[l];
+                                var vertex = Meshes[i].Vertices[weight.VertexID];
+                                var available = false;
+                                for (int m = 0; m < 4; m++)
+                                {
+                                    if (vertex.weights[m] == 0)
+                                    {
+                                        vertex.boneIds[m] = k;
+                                        vertex.weights[m] = weight.Weight;
+                                        available = true;
+                                        break;
+                                    }
+                                }
+                                if (available)
+                                {
+                                    Meshes[i].Vertices[weight.VertexID] = vertex;
+                                }
+                                else
+                                {
+                                    throw new NotSupportedException($"{mesh.Name}=>{aiBone.Name}:Vertex weights > 4");
+                                }
+                            }
+                            break;
+                        }
+                    }
                 }
+            }
+
+            for (int i = 0; i < Meshes.Length; i++)
+            {
+                var mesh = Meshes[i];
+                uint boneId = 0;
+                for (uint j = 0; j < Bones.Length; j++)
+                {
+                    if (Bones[j] == mesh.LinkedBone)
+                    {
+                        boneId = j;
+                        break;
+                    }
+                }
+                // 权重归一化
+                for (int j = 0; j < mesh.Vertices.Length; j++)
+                {
+                    var vertex = mesh.Vertices[j];
+                    var sum = vertex.weights.x + vertex.weights.y + vertex.weights.z + vertex.weights.w;
+                    if (sum == 0)
+                    {
+                        vertex.boneIds.x = boneId;
+                        vertex.weights.x = 1f;
+                    }
+                    else
+                    {
+                        vertex.weights = vertex.weights / sum;
+                    }
+                    mesh.Vertices[j] = vertex;
+                }
+
+                mesh.Setup();
             }
         }
 
-        static unsafe bool getTexturePath(Assimp.Material material, TextureType textureType, string modelPath, out string texturePath)
+        void getAnimation(Scene scene)
         {
-            if (material.GetMaterialTexture(textureType, 0, out var textureSlot))
+            var animations = new Animation.Animation[scene.AnimationCount];
+            for (int i = 0; i < scene.AnimationCount; i++)
             {
-                if (Path.IsPathFullyQualified(textureSlot.FilePath))
+                var aiAnimation = scene.Animations[i];
+                Console.WriteLine($"name:{aiAnimation.Name}, fps:{aiAnimation.TicksPerSecond}, framesCount:{aiAnimation.DurationInTicks}, channelCount:{aiAnimation.NodeAnimationChannelCount}");
+
+                animations[i] = new Animation.Animation(
+                    aiAnimation.Name, aiAnimation.TicksPerSecond,
+                    aiAnimation.DurationInTicks, aiAnimation.NodeAnimationChannelCount);
+                for (int j = 0; j < aiAnimation.NodeAnimationChannelCount; j++)
                 {
-                    texturePath = textureSlot.FilePath;
+                    var channel = aiAnimation.NodeAnimationChannels[j];
+                    //Console.WriteLine(channel.NodeName);
+                    // 映射骨骼
+                    for (int k = 0; k < Bones.Length; k++)
+                    {
+                        var bone = Bones[k];
+                        if (channel.NodeName == bone.name)
+                        {
+                            Track track;
+                            track.bone = bone;
+
+                            track.positionKeys = new PositionKey[channel.PositionKeyCount];
+                            for (int l = 0; l < channel.PositionKeyCount; l++)
+                            {
+                                var key = channel.PositionKeys[l];
+                                PositionKey positionKey;
+                                positionKey.time = key.Time;
+                                positionKey.position = MathHelper.ToFloat3(key.Value);
+                                track.positionKeys[l] = positionKey;
+                            }
+
+                            track.rotationKeys = new RotationKey[channel.RotationKeyCount];
+                            for (int l = 0; l < channel.RotationKeyCount; l++)
+                            {
+                                var key = channel.RotationKeys[l];
+                                RotationKey rotationKey;
+                                rotationKey.time = key.Time;
+                                rotationKey.rotation = MathHelper.ToQuaternion(key.Value);
+                                track.rotationKeys[l] = rotationKey;
+                            }
+
+                            track.scalingKeys = new ScalingKey[channel.ScalingKeyCount];
+                            for (int l = 0; l < channel.ScalingKeyCount; l++)
+                            {
+                                var key = channel.ScalingKeys[l];
+                                ScalingKey scalingKey;
+                                scalingKey.time = key.Time;
+                                scalingKey.scale = MathHelper.ToFloat3(key.Value);
+                                track.scalingKeys[l] = scalingKey;
+                            }
+
+                            animations[i].Tracks[j] = track;
+                            break;
+                        }
+                    }
                 }
-                else
-                {
-                    texturePath = Path.Combine(Path.GetDirectoryName(Path.GetFullPath(modelPath)), textureSlot.FilePath);
-                }
-                Console.WriteLine($"texture:{texturePath}");
-                return File.Exists(texturePath);
             }
-            texturePath = null;
-            return false;
+
+            Animations = animations;
         }
 
         public void CalculateAABB()

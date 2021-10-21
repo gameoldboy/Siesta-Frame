@@ -9,6 +9,7 @@
 			https://www.myget.org/F/sixlabors/api/v3/index.json;
 			$(RestoreAdditionalProjectSources)
 		</RestoreAdditionalProjectSources>
+		<TrimMode>Link</TrimMode>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

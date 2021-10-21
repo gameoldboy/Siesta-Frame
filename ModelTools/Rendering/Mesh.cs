@@ -28,6 +28,18 @@ namespace ModelTools.Rendering
             public float back;
             public float3 center;
 
+            public BoundingBox(float3 extents)
+            {
+                var halfExtents = extents * 0.5f;
+                right = halfExtents.x;
+                left = -halfExtents.x;
+                top = halfExtents.y;
+                bottom = -halfExtents.y;
+                front = halfExtents.z;
+                back = -halfExtents.z;
+                center = float3.zero;
+            }
+
             public override string ToString()
             {
                 return $"right:{right}, left:{left}, " +
@@ -48,8 +60,6 @@ namespace ModelTools.Rendering
             Indices = indices;
             Vertices = vertices;
             LinkedBone = bone;
-
-            Setup();
         }
 
         public VertexArrayObject VAO { get; private set; }
@@ -74,19 +84,19 @@ namespace ModelTools.Rendering
             vertexSize = (uint)sizeof(Vertex);
             var offset = 0;
             // 顶点坐标
-            VAO.VertexAttributePointer(0, 3, VertexAttribPointerType.Float, vertexSize, offset);
+            VAO.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, vertexSize, offset);
             // 顶点法线
-            VAO.VertexAttributePointer(1, 3, VertexAttribPointerType.Float, vertexSize, offset += 3 * sizeof(float));
+            VAO.VertexAttribPointer(1, 3, VertexAttribPointerType.Float, vertexSize, offset += 3 * sizeof(float));
             // 顶点切线
-            VAO.VertexAttributePointer(2, 4, VertexAttribPointerType.Float, vertexSize, offset += 3 * sizeof(float));
+            VAO.VertexAttribPointer(2, 4, VertexAttribPointerType.Float, vertexSize, offset += 3 * sizeof(float));
             // 顶点UV
-            VAO.VertexAttributePointer(3, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(float));
+            VAO.VertexAttribPointer(3, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(float));
             // 顶点颜色
-            VAO.VertexAttributePointer(4, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(float));
+            VAO.VertexAttribPointer(4, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(float));
             // 骨骼索引
-            VAO.VertexAttributePointer(5, 4, VertexAttribPointerType.UnsignedInt, vertexSize, offset += 4 * sizeof(float));
+            VAO.VertexAttribIPointer(5, 4, VertexAttribIType.UnsignedInt, vertexSize, offset += 4 * sizeof(float));
             // 骨骼权重
-            VAO.VertexAttributePointer(6, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(uint));
+            VAO.VertexAttribPointer(6, 4, VertexAttribPointerType.Float, vertexSize, offset += 4 * sizeof(uint));
 
             Program.GL.BindVertexArray(0);
             Program.GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
@@ -128,7 +138,7 @@ namespace ModelTools.Rendering
         void setShader(DrawData drawData, RenderingData renderingData, bool alphaDither)
         {
             var material = drawData.material;
-            material.Shader.SetMatrix(material.MatrixModelLocation, math.mul(drawData.modelMatrix, LinkedBone.CalculateObjectSpaceMatrix()));
+            material.Shader.SetMatrix(material.MatrixModelLocation, drawData.modelMatrix);
             material.Shader.SetMatrix(material.MatrixViewLocation, renderingData.viewMatrix);
             material.Shader.SetMatrix(material.MatrixProjectionLocation, renderingData.projectionMatrix);
             material.Shader.SetVector(material.BaseColorLocation, material.BaseColor);

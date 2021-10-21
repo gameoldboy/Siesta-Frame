@@ -25,6 +25,7 @@
 		<IlcGenerateStackTraceData Condition="'$(Configuration)' == 'Release' ">false</IlcGenerateStackTraceData>
 		<IlcFoldIdenticalMethodBodies Condition="'$(Configuration)' == 'Release' ">false</IlcFoldIdenticalMethodBodies>
 		<IlcDisableUnhandledExceptionExperience Condition="'$(Configuration)' == 'Release' ">true</IlcDisableUnhandledExceptionExperience>
+		<TrimMode>link</TrimMode>
 	</PropertyGroup>
 
 	<PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">

@@ -109,6 +109,11 @@ namespace ModelTools
             return new float4(color.R, color.G, color.B, color.A);
         }
 
+        public static quaternion ToQuaternion(Assimp.Quaternion quaternion)
+        {
+            return new quaternion(quaternion.X, quaternion.Y, quaternion.Z, quaternion.W);
+        }
+
         public static quaternion FromEuler(float x, float y, float z, math.RotationOrder order = math.RotationOrder.Default)
         {
             return quaternion.Euler(x, y, z, order);
@@ -358,49 +363,33 @@ namespace ModelTools
         }
         #endregion
 
-        public static float4x4 TRS(float3 translation, quaternion rotation, float3 scale)
+        public static float4x4 PerspectiveFov(float fov, uint width, uint height, float zNear, float zFar)
         {
-            float3x3 r = new float3x3(rotation);
-            return new float4x4(new float4(r.c0 * -scale.x, 0.0f),
-                                new float4(r.c1 * scale.y, 0.0f),
-                                new float4(r.c2 * scale.z, 0.0f),
-                                new float4(translation, 1.0f));
-        }
-
-        public static float4x4 LookAt(float3 pos, float3 target, float3 up)
-        {
-            var f = math.normalize(target - pos);
-            var s = math.normalize(math.cross(up, f));
-            var u = math.cross(f, s);
-
-            var Result = float4x4.identity;
-            Result[0][0] = s.x;
-            Result[1][0] = s.y;
-            Result[2][0] = s.z;
-            Result[0][1] = u.x;
-            Result[1][1] = u.y;
-            Result[2][1] = u.z;
-            Result[0][2] = f.x;
-            Result[1][2] = f.y;
-            Result[2][2] = f.z;
-            Result[3][0] = -math.dot(s, pos);
-            Result[3][1] = -math.dot(u, pos);
-            Result[3][2] = -math.dot(f, pos);
-            return Result;
-        }
-
-        public static float4x4 PerspectiveFov(float fov, uint width, uint height, float near, float far)
-        {
-            float rad = fov;
-            float h = math.cos(0.5f * rad) / math.sin(0.5f * rad);
-            float w = h * height / width;
+            var rad = fov * Deg2Rad;
+            var h = math.cos(0.5f * rad) / math.sin(0.5f * rad);
+            var w = h * height / width;
 
             var Result = float4x4.zero;
             Result[0][0] = w;
             Result[1][1] = h;
-            Result[2][2] = (far + near) / (far - near);
+            Result[2][2] = zFar / (zFar - zNear);
             Result[2][3] = 1f;
-            Result[3][2] = -(2f * far * near) / (far - near);
+            Result[3][2] = -(zFar * zNear) / (zFar - zNear);
+            return Result;
+        }
+
+        public static float4x4 ReversedZPerspectiveFov(float fov, uint width, uint height, float zNear, float zFar)
+        {
+            var rad = fov * Deg2Rad;
+            var h = math.cos(0.5f * rad) / math.sin(0.5f * rad);
+            var w = h * height / width;
+
+            var Result = float4x4.zero;
+            Result[0][0] = w;
+            Result[1][1] = h;
+            Result[2][2] = zNear / (zNear - zFar);
+            Result[2][3] = 1f;
+            Result[3][2] = zFar * zNear / (zFar - zNear);
             return Result;
         }
 
@@ -409,20 +398,11 @@ namespace ModelTools
             var Result = float4x4.identity;
             Result[0][0] = 2f / (right - left);
             Result[1][1] = 2f / (top - bottom);
-            Result[2][2] = 2f / (zFar - zNear);
+            Result[2][2] = 1f / (zFar - zNear);
             Result[3][0] = -(right + left) / (right - left);
             Result[3][1] = -(top + bottom) / (top - bottom);
-            Result[3][2] = -(zFar + zNear) / (zFar - zNear);
+            Result[3][2] = -zNear / (zFar - zNear);
             return Result;
-        }
-
-        public static float4x4 RemoveTranslation(float4x4 m)
-        {
-            return new float4x4(
-                new float4(-m.c0.xyz, 0.0f),
-                new float4(m.c1.xyz, 0.0f),
-                new float4(m.c2.xyz, 0.0f),
-                new float4(new float3(0), 1.0f));
         }
     }
 }
