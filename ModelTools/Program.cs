@@ -27,6 +27,14 @@ namespace ModelTools
         static IInputContext inputContext;
         static ImGuiController controller;
 
+        static uint frameBuffer;
+        static uint colorAttachment;
+        static uint depthAttachment;
+        static VertexArrayObject fullscreenVAO;
+        static BufferObject<float> fullscreenVBO;
+        static Shader postProcessingShader;
+        static int postProcessingBaseMapLocation;
+
         struct OPENFILENAME
         {
             public int lStructSize;
@@ -80,7 +88,7 @@ namespace ModelTools
             options.Size = new Vector2D<int>(800, 600);
             options.Title = "Siesta Model Tools";
             options.PreferredBitDepth = new Vector4D<int>(8, 8, 8, 0);
-            options.PreferredDepthBufferBits = 24;
+            options.PreferredDepthBufferBits = 0;
             options.PreferredStencilBufferBits = 0;
             window = Window.Create(options);
 
@@ -97,7 +105,6 @@ namespace ModelTools
         static int linesModelMatrixLocation;
         static int linesViewMatrixLocation;
         static int linesProjectionMatrixLocation;
-        static int linesViewPosLocation;
         static int linesColorLocation;
 
         static unsafe void Window_Load()
@@ -128,6 +135,9 @@ namespace ModelTools
                 mouese.Scroll += Mouese_Scroll;
             }
 
+            frameBuffer = GL.GenFramebuffer();
+            allocRT();
+
             string vert, frag;
             using (Stream stream = assembly.GetManifestResourceStream("ModelTools.Shaders.linesvert.glsl"))
             using (StreamReader reader = new StreamReader(stream))
@@ -143,9 +153,80 @@ namespace ModelTools
             linesModelMatrixLocation = linesShader.GetUniformLocation("MatrixModel");
             linesViewMatrixLocation = linesShader.GetUniformLocation("MatrixView");
             linesProjectionMatrixLocation = linesShader.GetUniformLocation("MatrixProjection");
-            linesViewPosLocation = linesShader.GetUniformLocation("_ViewPosWS");
             linesColorLocation = linesShader.GetUniformLocation("_BaseColor");
+            using (Stream stream = assembly.GetManifestResourceStream("ModelTools.Shaders.postprocessingvert.glsl"))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                vert = reader.ReadToEnd();
+            }
+            using (Stream stream = assembly.GetManifestResourceStream("ModelTools.Shaders.postprocessingfrag.glsl"))
+            using (StreamReader reader = new StreamReader(stream))
+            {
+                frag = reader.ReadToEnd();
+            }
+            postProcessingShader = new ShaderSource(vert, frag);
+            postProcessingBaseMapLocation = postProcessingShader.GetUniformLocation("_BaseMap");
 
+            genGrid();
+
+            fullscreenVAO = new VertexArrayObject();
+            fullscreenVAO.Bind();
+            fullscreenVBO = new BufferObject<float>(BufferTargetARB.ArrayBuffer);
+            fullscreenVBO.Bind();
+            float[] fullscreenQuad =
+                { -1f, -1f, 0, 0, 0, 1f, -1f, 0, 1, 0, -1f, 1f, 0, 0, 1,
+                -1f, 1f, 0, 0, 1, 1f, -1f, 0, 1, 0, 1f, 1f, 0, 1, 1 };
+            fullscreenVBO.BufferData(fullscreenQuad);
+            fullscreenVAO.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, 20, 0);
+            fullscreenVAO.VertexAttribPointer(1, 2, VertexAttribPointerType.Float, 20, 12);
+            GL.BindVertexArray(0);
+            GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+
+            skinningIndices = new Dictionary<Bone, int>();
+            skinningMatrices = new float4x4[0];
+            skinningSSBO = new BufferObject<float4x4>(BufferTargetARB.ShaderStorageBuffer);
+
+            // z范围 0-1
+            GL.ClipControl(ClipControlOrigin.LowerLeft, ClipControlDepth.ZeroToOne);
+            // 反向z
+            GL.ClearDepth(0);
+            GL.DepthFunc(DepthFunction.Greater);
+            GL.Enable(EnableCap.DepthTest);
+            GL.Enable(EnableCap.CullFace);
+            GL.ClearColor(0.133f, 0.217f, 0.325f, 1f);
+
+            ResetCamera();
+
+            var version = GL.GetStringS(GLEnum.Version);
+            Console.WriteLine($"OpenGL Version:{version}");
+        }
+
+        static unsafe void allocRT()
+        {
+            if (colorAttachment > 0)
+            {
+                GL.DeleteTexture(colorAttachment);
+            }
+            if (depthAttachment > 0)
+            {
+                GL.DeleteRenderbuffer(depthAttachment);
+            }
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
+            colorAttachment = GL.GenTexture();
+            GL.BindTexture(TextureTarget.Texture2DMultisample, colorAttachment);
+            GL.TexImage2DMultisample(TextureTarget.Texture2DMultisample, 4, InternalFormat.Rgb16f, (uint)window.Size.X, (uint)window.Size.Y, true);
+            GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0, TextureTarget.Texture2DMultisample, colorAttachment, 0);
+            depthAttachment = GL.GenRenderbuffer();
+            GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, depthAttachment);
+            GL.RenderbufferStorageMultisample(RenderbufferTarget.Renderbuffer, 4, InternalFormat.DepthComponent32f, (uint)window.Size.X, (uint)window.Size.Y);
+            GL.FramebufferRenderbuffer(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, RenderbufferTarget.Renderbuffer, depthAttachment);
+            GL.BindTexture(TextureTarget.Texture2DMultisample, 0);
+            GL.BindRenderbuffer(RenderbufferTarget.Renderbuffer, 0);
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+        }
+
+        static unsafe void genGrid()
+        {
             var debugAxisX = new float3[] { new float3(-500f, 0, 0), new float3(500f, 0, 0) };
             var debugAxisY = new float3[] { new float3(0, -500, 0), new float3(0, 500f, 0) };
             var debugAxisZ = new float3[] { new float3(0, 0, -500f), new float3(0, 0, 500f) };
@@ -192,24 +273,6 @@ namespace ModelTools
             debugGridVAO.VertexAttribPointer(0, 3, VertexAttribPointerType.Float, (uint)sizeof(float3), 0);
             GL.BindVertexArray(0);
             GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
-
-            skinningIndices = new Dictionary<Bone, int>();
-            skinningMatrices = new float4x4[0];
-            skinningSSBO = new BufferObject<float4x4>(BufferTargetARB.ShaderStorageBuffer);
-
-            // z范围 0-1
-            GL.ClipControl(ClipControlOrigin.LowerLeft, ClipControlDepth.ZeroToOne);
-            // 反向z
-            GL.ClearDepth(0);
-            GL.DepthFunc(DepthFunction.Greater);
-            GL.Enable(EnableCap.DepthTest);
-            GL.Enable(EnableCap.CullFace);
-            GL.ClearColor(0.4f, 0.5f, 0.6f, 1f);
-
-            ResetCamera();
-
-            var version = GL.GetStringS(GLEnum.Version);
-            Console.WriteLine($"OpenGL Version:{version}");
         }
 
         static float3 cameraPos;
@@ -360,7 +423,7 @@ namespace ModelTools
             if (mouseRB)
             {
                 var forward = mouseDelta.y * 0.002f * cameraDistance;
-                cameraDistance = math.max(0.1f, cameraDistance + forward);
+                cameraDistance = math.max(0.001f, cameraDistance + forward);
                 cameraPos = aabb.center;
                 cameraPos += (-cameraForward) * cameraDistance;
             }
@@ -419,7 +482,7 @@ namespace ModelTools
             float halfHight = (aabb.top - aabb.bottom) * 0.5f;
             float halfLength = (aabb.front - aabb.back) * 0.5f;
             float longest = math.max(halfWidth, halfHight);
-            cameraDistance = math.max(0.1f, longest / math.tan(fovRad) + halfLength);
+            cameraDistance = math.max(0.001f, longest / math.tan(fovRad) + halfLength);
             cameraPos = aabb.center;
             cameraPosOffset = float3.zero;
             cameraYaw = 180f;
@@ -442,22 +505,22 @@ namespace ModelTools
         {
             var deltatime = (float)dt;
 
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, frameBuffer);
             GL.Clear(ClearBufferMask.ColorBufferBit | ClearBufferMask.DepthBufferBit);
             var renderingData = createRenderingData();
-            GL.Enable(EnableCap.FramebufferSrgb);
             if (model != null)
             {
                 renderModel(renderingData);
                 if (viewBones)
                 {
-                    GL.Disable(EnableCap.FramebufferSrgb);
                     drawBone(renderingData);
                 }
             }
+            drawDebugAxisGrid(renderingData);
+            GL.Enable(EnableCap.FramebufferSrgb);
+            postProcessing();
 
             GL.Disable(EnableCap.FramebufferSrgb);
-            drawDebugAxisGrid(renderingData);
-
             onGUI(deltatime);
             controller.Render();
 
@@ -466,6 +529,21 @@ namespace ModelTools
             {
                 Console.WriteLine($"GL Error:{error}");
             }
+        }
+
+        static void postProcessing()
+        {
+            GL.BindFramebuffer(FramebufferTarget.Framebuffer, 0);
+            GL.Clear(ClearBufferMask.ColorBufferBit);
+            fullscreenVAO.Bind();
+            postProcessingShader.Use();
+            GL.ActiveTexture(TextureUnit.Texture0);
+            GL.BindTexture(TextureTarget.Texture2DMultisample, colorAttachment);
+            postProcessingShader.SetInt(postProcessingBaseMapLocation, 0);
+            GL.DrawArrays(PrimitiveType.Triangles, 0, 6);
+            GL.BindVertexArray(0);
+            GL.UseProgram(0);
+            GL.BindTexture(TextureTarget.Texture2DMultisample, 0);
         }
 
         static RenderingData createRenderingData()
@@ -485,7 +563,7 @@ namespace ModelTools
             {
                 aabb = new BoundingBox(10f);
             }
-            var nearClip = math.min(0.1f, cameraDistance);
+            var nearClip = math.min(0.1f, cameraDistance * 0.1f);
             var farClip =
                 math.max(math.max(math.max(
                 aabb.right - aabb.left,
@@ -511,7 +589,6 @@ namespace ModelTools
             linesShader.SetMatrix(linesModelMatrixLocation, float4x4.identity);
             linesShader.SetMatrix(linesViewMatrixLocation, renderingData.viewMatrix);
             linesShader.SetMatrix(linesProjectionMatrixLocation, renderingData.projectionMatrix);
-            linesShader.SetVector(linesViewPosLocation, renderingData.cameraPosition);
             debugGridVAO.Bind();
             linesShader.SetVector(linesColorLocation, new float4(1f, 1f, 1f, 0.2f));
             GL.DrawArrays(PrimitiveType.Lines, 0, 12000);
@@ -588,7 +665,6 @@ namespace ModelTools
                 linesShader.SetMatrix(linesModelMatrixLocation, float4x4.identity);
                 linesShader.SetMatrix(linesViewMatrixLocation, renderingData.viewMatrix);
                 linesShader.SetMatrix(linesProjectionMatrixLocation, renderingData.projectionMatrix);
-                linesShader.SetVector(linesViewPosLocation, renderingData.cameraPosition);
                 linesShader.SetVector(linesColorLocation, new float4(0, 1f, 0, 1f));
                 GL.Disable(EnableCap.DepthTest);
                 GL.Enable(EnableCap.Blend);
@@ -618,7 +694,7 @@ namespace ModelTools
                 var ofn = new OPENFILENAME();
                 ofn.lStructSize = Marshal.SizeOf(ofn);
                 ofn.hwndOwner = window.Native.Win32.Value.Hwnd;
-                ofn.lpstrFilter = "Model files (*.obj;*.fbx;*.dae)\0*.obj;*.fbx;*.dae\0\0";
+                ofn.lpstrFilter = "Model files (*.obj;*.fbx)\0*.obj;*.fbx\0\0";
                 ofn.lpstrFile = new string(new char[256]);
                 ofn.nMaxFile = ofn.lpstrFile.Length;
                 ofn.lpstrFileTitle = new string(new char[64]);
@@ -757,6 +833,7 @@ namespace ModelTools
         static void Window_FramebufferResize(Vector2D<int> size)
         {
             GL.Viewport(size);
+            allocRT();
         }
 
         static unsafe void Window_FileDrop(WindowHandle* window, int count, nint paths)
@@ -806,6 +883,12 @@ namespace ModelTools
         {
             inputContext.Dispose();
             controller.Dispose();
+            GL.DeleteFramebuffer(frameBuffer);
+            GL.DeleteTexture(colorAttachment);
+            GL.DeleteRenderbuffer(depthAttachment);
+            fullscreenVAO.Dispose();
+            fullscreenVBO.Dispose();
+            postProcessingShader.Dispose();
             linesShader.Dispose();
             model?.Dispose();
             debugAxisXVAO.Dispose();

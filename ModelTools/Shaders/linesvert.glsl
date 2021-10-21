@@ -6,13 +6,13 @@ uniform mat4 MatrixModel;
 uniform mat4 MatrixView;
 uniform mat4 MatrixProjection;
 
-flat out vec3 _OriginPositionWS;
-out vec3 _PositionWS;
+flat out vec3 _OriginPositionVS;
+out vec3 _PositionVS;
 
 void main()
 {
-    _OriginPositionWS = (MatrixModel * vec4(PositionOS, 1.0)).xyz;
-    _PositionWS = _OriginPositionWS;
-    
-    gl_Position = MatrixProjection * MatrixView * vec4(_PositionWS, 1.0);
+    _OriginPositionVS = (MatrixView * MatrixModel * vec4(PositionOS, 1.0)).xyz;
+    _PositionVS = _OriginPositionVS;
+
+    gl_Position = MatrixProjection * vec4(_PositionVS, 1.0);
 }

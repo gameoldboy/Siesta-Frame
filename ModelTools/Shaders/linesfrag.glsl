@@ -1,22 +1,21 @@
 #version 330 core
 
-flat in vec3 _OriginPositionWS;
-in vec3 _PositionWS;
+flat in vec3 _OriginPositionVS;
+in vec3 _PositionVS;
 
 uniform mat4 MatrixView;
 uniform vec4 _BaseColor;
-uniform vec3 _ViewPosWS;
 
 out vec4 FragColor;
 
 void main()
 {
-    vec3 dir = normalize(_PositionWS - _OriginPositionWS);
-    vec3 viewDir = normalize(_ViewPosWS - _PositionWS);
+    vec3 dir = normalize(_PositionVS - _OriginPositionVS);
 
-    float theta = abs(dot(dir, viewDir));
-    theta = sqrt(1.0 - theta * theta);
-    vec3 posVS = (MatrixView * vec4(_PositionWS, 1.0)).xyz;
+    float theta = abs(dot(dir, vec3(0.0, 0.0, 1.0)));
+    theta = max(0.0, sqrt(1.0 - theta * theta));
 
-    FragColor = vec4(_BaseColor.xyz, theta * (1.0 - smoothstep(50.0, 100.0, posVS.z)) * _BaseColor.w);
+    float fadeout = 1.0 - smoothstep(50.0, 100.0, _PositionVS.z);
+
+    FragColor = vec4(_BaseColor.xyz, theta * fadeout * _BaseColor.w);
 }
